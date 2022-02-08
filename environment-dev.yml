@@ -9,3 +9,5 @@ dependencies:
   - bumpversion
   - google-auth
   - google-cloud-secret-manager
+  - azure-identity
+  - azure-keyvault-secrets
