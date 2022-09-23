@@ -23,30 +23,27 @@ access_level = 'standard'
 # Process the following samples even if outputs exist:
 #force_samples = []
 
+# Skip these stages:
+#skip_stages = []
+
+# Skip all other stages:
+#only_stages = []
+
 # Start from this stage:
-#first_stage =
+#first_stages = []
 
 # Finish at this stage:
-#last_stage =
+#last_stages = []
 
 # Map of stages to lists of samples, to skip for specific stages
 #[workflow.skip_samples_stages]
-#VerifyBamId = ['CPG13409']  # https://batch.hail.populationgenomics.org.au/batches/56236/jobs/372
+#VerifyBamId = ['CPG13409']
 
-# Name of the pipeline (to prefix output paths)
+# Name of the workflow (to prefix output paths)
 #name =
 
-# Description of the pipeline (to appear in the Batch GUI)
+# Description of the workflow (to display in the Batch GUI)
 #description =
-
-# Status reporter type (class that reports jobs statuses and results)
-#status_repotrer = 'smdb'
-
-# Input provider type ('csv' or 'smdb' for the CPG sample-metadata database)
-input_provider = 'smdb'
-
-# CSV file path for input_provider='csv'
-#input_csv =
 
 # For the first (not-skipped) stage, if the input for a target does
 # not exist, just skip this target instead of failing. E.g. if the first
@@ -78,10 +75,6 @@ check_expected_outputs = true
 #token_secret_id = 'slack-seqr-loader-token'
 #token_project_id = 'seqr-308602'
 
-# When the sample-metadata database API returns an error from the
-# database, only show the error and continue, instead of crashing
-smdb_errors_are_fatal = true
-
 # Prefix to find docker images referenced in `image_config_yaml_path`
 image_registry_prefix = 'australia-southeast1-docker.pkg.dev/cpg-common/images'
 
@@ -97,24 +90,12 @@ web_url_template = 'https://{namespace}-web.populationgenomics.org.au/{dataset}'
 #dataset_gcp_project =
 
 # Limit to data of this sequencing type
-sequencing_type = 'genome'
+#sequencing_type = 'genome'
 
 # Realign CRAM when available, instead of using FASTQ.
 # The parameter value should correspond to CRAM version
 # (e.g. v0 in gs://cpg-fewgenomes-main/cram/v0/CPG01234.cram
 #realign_from_cram_version = 'bwamem'
-
-# Number of shards for realignment from BAM/CRAM
-realignment_shards_num = 10
-
-# Number of intervals to partition sample genotyping
-hc_intervals_num = 50
-
-# Number of intervals to partition joint calling and VQSR
-jc_intervals_num = 50
-
-# Number of intervals to partition VEP annotation
-vep_intervals_num = 50
 
 # Use GnarlyGenotyper instead of GenotypeGVCFs
 use_gnarly = false
@@ -140,9 +121,8 @@ password_project_id = 'seqr-308602'
 
 [hail]
 #billing_project =
-#bucket =
-pool_label = 'seqr'
-keep_scratch = true
+#pool_label = 'seqr'
+delete_scratch_on_exit = false
 dry_run = false
 
 [images]
@@ -157,20 +137,17 @@ picard = 'picard_samtools:v0'
 picard_samtools = 'picard_samtools:v0'
 somalier = 'somalier:v0.2.15'
 peddy = 'peddy:v0'
-vep ='vep:105'
-verify-bam-id = 'verify-bam-id:1.0.1'
+vep = 'vep:105.0'
+verifybamid = 'verifybamid:2.0.1'
 multiqc = 'multiqc:v1.12'
 fastqc = 'fastqc:v0.11.9_cv8'
-happy-vcfeval = 'happy-vcfeval:1.0'
-hail = 'driver:4225655198684124178417573ffc6ed714cf0c04-hail-d4bd6a2fd606634057b0277fce06cedce5b764a6'
-sm-api = 'driver:4225655198684124178417573ffc6ed714cf0c04-hail-d4bd6a2fd606634057b0277fce06cedce5b764a6'
+happy = 'hap.py:v0.3.15'
+hail = 'driver:14432044df1c5210237727cc10bee817674700c0-hail-48ff6e3a3f08a11ccb5b0ad5366ede25e43837a8'
+sm-api = 'driver:14432044df1c5210237727cc10bee817674700c0-hail-48ff6e3a3f08a11ccb5b0ad5366ede25e43837a8'
 
 [references]
 # Genome build. Only GRCh38 is currently supported.
 genome_build = 'GRCh38'
-
-# Paths to reference files. Paths can be absolute
-# or relative to the `workflow.reference_prefix` config option.
 
 # Site list for somalier https://github.com/brentp/somalier/releases/tag/v0.2.15
 somalier_sites = 'somalier/v0/sites.hg38.vcf.gz'
@@ -178,12 +155,8 @@ somalier_sites = 'somalier/v0/sites.hg38.vcf.gz'
 somalier_1kg_targz = 'somalier/v0/1kg.somalier.tar.gz'
 # Somalier list of 1kg samples for the "ancestry" command.
 somalier_1kg_labels = 'somalier/v0/ancestry-labels-1kg.tsv'
-# LofTee reference tarball for VEP.
-vep_loftee = 'vep/loftee_GRCh38.tar'
-# Reference tarball for VEP.
-vep = 'vep/homo_sapiens_vep_105_GRCh38.tar'
 # Contains uncompressed VEP tarballs for mounting with cloudfuse.
-vep_mount = 'vep/GRCh38'
+vep_mount = 'vep/105.0/mount'
 # To cache intervals.
 intervals_prefix = 'intervals'
 # Liftover chain file to translate from GRCh38 to GRCh37 coordinates
@@ -216,7 +189,6 @@ exome_calling_interval_lists = 'exome_calling_regions.v1.interval_list'
 genome_evaluation_interval_lists = 'wgs_evaluation_regions.hg38.interval_list'
 exome_evaluation_interval_lists = 'exome_evaluation_regions.v1.interval_list'
 genome_coverage_interval_list = 'wgs_coverage_regions.hg38.interval_list'
-unpadded_intervals = 'hg38.even.handcurated.20k.intervals'
 
 # VQSR (relative to broad_ref)
 dbsnp_vcf = 'Homo_sapiens_assembly38.dbsnp138.vcf'
@@ -232,10 +204,14 @@ mills_vcf_index = 'Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi'
 axiom_poly_vcf = 'Axiom_Exome_Plus.genotypes.all_populations.poly.hg38.vcf.gz'
 axiom_poly_vcf_index = 'Axiom_Exome_Plus.genotypes.all_populations.poly.hg38.vcf.gz.tbi'
 
-# Contamination check (relative to boad_ref):
-contam_ud =  'contamination-resources/1000g/1000g.phase3.100k.b38.vcf.gz.dat.UD'
-contam_bed = 'contamination-resources/1000g/1000g.phase3.100k.b38.vcf.gz.dat.bed'
-contam_mu =  'contamination-resources/1000g/1000g.phase3.100k.b38.vcf.gz.dat.mu'
+# Genome contamination check
+genome_contam_ud =  'contamination-resources/1000g/1000g.phase3.100k.b38.vcf.gz.dat.UD'
+genome_contam_bed = 'contamination-resources/1000g/1000g.phase3.100k.b38.vcf.gz.dat.bed'
+genome_contam_mu =  'contamination-resources/1000g/1000g.phase3.100k.b38.vcf.gz.dat.mu'
+# Exome contamination check
+exome_contam_ud = 'contamination-resources/1000g/whole_exome_illumina_coding_v1.Homo_sapiens_assembly38.1000g.contam.UD'
+exome_contam_bed = 'contamination-resources/1000g/whole_exome_illumina_coding_v1.Homo_sapiens_assembly38.1000g.contam.bed'
+exome_contam_mu = 'contamination-resources/1000g/whole_exome_illumina_coding_v1.Homo_sapiens_assembly38.1000g.contam.mu'
 
 ## GnomAD resources for Hail Query
 [references.gnomad]
@@ -254,3 +230,17 @@ mills_ht = 'mills/Mills_and_1000G_gold_standard.indels.hg38.ht'
 prefix = 'seqr/v0-1'
 combined_reference = 'combined_reference_data_grch38-2.0.4.ht'
 clinvar = 'clinvar.GRCh38.ht'
+
+[references.validation]
+prefix = 'validation'
+[references.validation.syndip]
+truth = 'syndip/truth/full.38.20180222.vcf.gz'
+regions = 'syndip/regions/syndip.b38_20180222.bed'
+[references.validation.HG001]
+truth = 'giab/truth/HG001_GRCh38_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.vcf.gz'
+regions = 'giab/regions/HG001_GRCh38_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_nosomaticdel_noCENorHET7.bed'
+
+# Map internally used validation sample external_id to truth sample names
+[validation.sample_map]
+HG001_NA12878 = 'HG001'
+SYNDIP = 'syndip'

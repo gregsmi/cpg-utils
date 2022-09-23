@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import setuptools
+from setuptools import find_packages, setup
 
-setuptools.setup(
+setup(
     name='cpg-utils-ms',
     # This tag is automatically updated by bumpversion
     version='0.8.7',
@@ -11,7 +11,7 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     url=f'https://github.com/gregsmi/cpg-utils',
     license='MIT',
-    packages=['cpg_utils'],
+    packages=find_packages(),
     install_requires=[
         'google-auth',
         'google-cloud-secret-manager',
@@ -21,7 +21,19 @@ setuptools.setup(
         'cloudpathlib[all]',
         'toml',
         'frozendict',
+        'coloredlogs',
     ],
+    extras_require={
+        'test': [
+            'pytest',
+            'pytest-mock',
+        ],
+        'workflows': [
+            'hail',
+            'networkx',
+            'sample-metadata',
+        ],
+    },
     package_data={
         'cpg_utils': ['config-template.toml'],
     },
