@@ -31,7 +31,7 @@ setup(
         'workflows': [
             'hail',
             'networkx',
-            'sample-metadata',
+            'sample-metadata-ms',
         ],
     },
     package_data={

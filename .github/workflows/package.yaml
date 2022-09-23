@@ -25,7 +25,7 @@ jobs:
         run: python setup.py sdist
 
       - name: Test install
-        run: pip install dist/*
+        run: pip install .[all]
 
       - name: Test with pytest
         run: |
