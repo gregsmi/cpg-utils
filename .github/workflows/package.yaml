@@ -25,7 +25,7 @@ jobs:
         run: python setup.py sdist
 
       - name: Test install
-        run: pip install .[all]
+        run: pip install .[workflows]
 
       - name: Test with pytest
         run: |
