@@ -21,17 +21,16 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Build
-        run: python setup.py sdist
-
       - name: Test install
+        run: pip install .[test]
         run: pip install .[workflows]
 
       - name: Test with pytest
         run: |
-          pip install pytest
-          pip install pytest-cov
           pytest
+
+      - name: Build
+        run: python setup.py sdist
 
       - name: Publish the wheel to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

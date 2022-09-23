@@ -27,6 +27,7 @@ setup(
         'test': [
             'pytest',
             'pytest-mock',
+            'pytest-cov'
         ],
         'workflows': [
             'hail',
