@@ -5,6 +5,8 @@ Inspired by https://github.com/drivendataorg/cloudpathlib/issues/157
 
 import re
 import os
+import json
+import logging
 from typing import Union, Optional, Any, Callable
 from urllib.parse import urlparse
 import mimetypes
@@ -15,6 +17,10 @@ from cloudpathlib.client import register_client_class
 from cloudpathlib.cloudpath import register_path_class, CloudPath
 from cloudpathlib.exceptions import InvalidPrefixError
 
+# TODO pretty heavy handed
+logging.getLogger('azure').setLevel(logging.WARN)
+logging.getLogger('msal').setLevel(logging.WARN)
+logging.getLogger('urllib3').setLevel(logging.WARN)
 
 @register_client_class('hail-az')
 class HailAzureBlobClient(AzureBlobClient):
@@ -23,7 +29,7 @@ class HailAzureBlobClient(AzureBlobClient):
         account_url: Optional[str] = None,
         credential: Optional[Any] = None,
         connection_string: Optional[str] = None,
-        blob_service_client: Optional["BlobServiceClient"] = None,
+        blob_service_client: Optional[BlobServiceClient] = None,
         local_cache_dir: Optional[Union[str, os.PathLike]] = None,
         content_type_method: Optional[Callable] = mimetypes.guess_type,
     ):
@@ -79,7 +85,8 @@ class HailAzureBlobClient(AzureBlobClient):
                 # TODO: when both are provided behavior is unclear to user.
                 service_client = BlobServiceClient(account_url=account_url, credential=credential)
             elif (azure_application_credentials_file := os.getenv("AZURE_APPLICATION_CREDENTIALS")) is not None:
-                service_client = _blob_service_client_from_file(azure_application_credentials_file)
+                msal_credential = self._msal_credential_from_file(azure_application_credentials_file)
+                service_client = BlobServiceClient(account_url=account_url, credential=msal_credential)
             else:
                 # EnvironmentCredential, ManagedIdentityCredential, AzureCliCredential
                 msal_credential = DefaultAzureCredential(
@@ -95,7 +102,7 @@ class HailAzureBlobClient(AzureBlobClient):
 
         super().__init__(blob_service_client=service_client, local_cache_dir=local_cache_dir, content_type_method=content_type_method)
 
-    def _msal_credential_from_file(file_path: str) -> ClientSecretCredential:
+    def _msal_credential_from_file(self, file_path: str) -> ClientSecretCredential:
         with open(file_path, "r") as f:
             credentials = json.loads(f.read())
         return ClientSecretCredential(
