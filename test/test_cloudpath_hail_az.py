@@ -1,61 +1,33 @@
-#import azure.core.exceptions
-import azure.identity
-#import azure.storage.blob
 import os
+from unittest.mock import patch
+
 import pytest
-from cpg_utils.cloudpath_hail_az import HailAzureBlobClient, HailAzureBlobPath
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
+from cpg_utils.cloudpath_hail_az import HailAzureBlobPath, HailAzureBlobClient
 import cloudpathlib.exceptions
-
-#from cpg_utils.deploy_config import set_deploy_config_from_env
-#from cpg_utils.storage import clear_data_manager, DataManager, get_data_manager, get_dataset_bucket_url
-#from cpg_utils.job_config import get_config, remote_tmpdir, set_config_paths, set_job_config, _validate_configs
-
-class MockDefaultAzureCredential:
-    def __init__(
-        self, 
-        exclude_powershell_credential,
-        exclude_visual_studio_code_credential,
-        exclude_shared_token_cache_credential,
-        exclude_interactive_browser_credential
-    ):
-        pass
-
-class MockClientSecretCredential:
-    def __init__(
-        self,
-        tenant_id,
-        client_id,
-        client_secret
-    ):
-        pass
-
 
 def test_account_url():
     with pytest.raises(ValueError):
         HailAzureBlobClient(account_url=None)
 
 
-def test_sas_auth(monkeypatch):
-    monkeypatch.setattr(azure.identity, 'DefaultAzureCredential', MockDefaultAzureCredential)
+@patch('cpg_utils.cloudpath_hail_az.BlobServiceClient', autospec=True)
+def test_sas_auth(mock_blob_service_client):
     path = HailAzureBlobPath('hail-az://fakeaccount/fakecontainer/fakeblob?not_a_real_sas_token')
-    # Can't test that the underlying credential is sas based, but we can verify that the underlying BlobServiceClient was created without issue
-    assert path.client.service_client is not None
+    assert mock_blob_service_client.call_args.kwargs['account_url'].endswith('?not_a_real_sas_token')
 
 
-def test_env_auth(monkeypatch, test_resources_path):
-    monkeypatch.setattr(azure.identity, 'ClientSecretCredential', MockClientSecretCredential)
-    monkeypatch.setenv('AZURE_APPLICATION_CREDENTIALS', os.path.join(test_resources_path, 'azure_creds.json'))
+@patch('cpg_utils.cloudpath_hail_az.BlobServiceClient', autospec=True)
+def test_env_auth(mock_blob_service_client, test_resources_path):
+    with patch.dict(os.environ, {"AZURE_APPLICATION_CREDENTIALS": os.path.join(test_resources_path, 'azure_creds.json')}):
+        path = HailAzureBlobPath('hail-az://fakeaccount/fakecontainer/fakeblob')
+        assert isinstance(mock_blob_service_client.call_args.kwargs['credential'], ClientSecretCredential)
+
+
+@patch('cpg_utils.cloudpath_hail_az.BlobServiceClient', autospec=True)
+def test_default_auth(mock_blob_service_client):
     path = HailAzureBlobPath('hail-az://fakeaccount/fakecontainer/fakeblob')
-    # Can't test that the underlying credential is sas based, but we can verify that the underlying BlobServiceClient was created without issue
-    assert path.client.service_client is not None
-    monkeypatch.delenv('AZURE_APPLICATION_CREDENTIALS')
-
-
-def test_default_auth(monkeypatch):
-    monkeypatch.setattr(azure.identity, 'DefaultAzureCredential', MockDefaultAzureCredential)
-    path = HailAzureBlobPath('hail-az://fakeaccount/fakecontainer/fakeblob')
-    # Can't test that the underlying credential is sas based, but we can verify that the underlying BlobServiceClient was created without issue
-    assert path.client.service_client is not None
+    assert isinstance(mock_blob_service_client.call_args.kwargs['credential'], DefaultAzureCredential)
 
 
 def test_valid_cloudpath():
@@ -69,22 +41,22 @@ def test_valid_cloudpath():
         HailAzureBlobPath.is_valid_cloudpath("https://bar.blob.core.windows.COM/baz/bah", raise_on_error=True)
 
 
-def test_client_provided(monkeypatch):
-    monkeypatch.setattr(azure.identity, 'DefaultAzureCredential', MockDefaultAzureCredential)
+@patch('cpg_utils.cloudpath_hail_az.BlobServiceClient', autospec=True)
+def test_client_provided( _ ):
     client = HailAzureBlobClient('https://fakeaccount.blob.core.windows.net')
     path = HailAzureBlobPath('hail-az://fakeaccount/fakecontainer/fakeblob', client=client)
     assert path.client == client
 
 
-def test_cloudpath_provided(monkeypatch):
-    monkeypatch.setattr(azure.identity, 'DefaultAzureCredential', MockDefaultAzureCredential)
+@patch('cpg_utils.cloudpath_hail_az.BlobServiceClient', autospec=True)
+def test_cloudpath_provided( _ ):
     path1 = HailAzureBlobPath('hail-az://fakeaccount/fakecontainer')
     path2 = HailAzureBlobPath(path1)
     assert path1.as_uri() == path2.as_uri()
 
 
+@patch('cpg_utils.cloudpath_hail_az.BlobServiceClient', autospec=True)
 def test_path_completeness(monkeypatch):
-    monkeypatch.setattr(azure.identity, 'DefaultAzureCredential', MockDefaultAzureCredential)
     with pytest.raises(ValueError):
         path = HailAzureBlobPath('hail-az://fakeaccount')
     with pytest.raises(ValueError):
@@ -95,8 +67,8 @@ def test_path_completeness(monkeypatch):
     HailAzureBlobPath('hail-az://fakeaccount/fakecontainer/fakeblob/subpath')
     HailAzureBlobPath('hail-az://fakeaccount/fakecontainer/fakeblob/subpath/')
 
+@patch('cpg_utils.cloudpath_hail_az.BlobServiceClient', autospec=True)
 def test_properties(monkeypatch):
-    monkeypatch.setattr(azure.identity, 'DefaultAzureCredential', MockDefaultAzureCredential)
     path = HailAzureBlobPath('hail-az://fakeaccount/fakecontainer')
     assert path.account == 'fakeaccount'
     assert path.container == 'fakecontainer'
@@ -105,8 +77,4 @@ def test_properties(monkeypatch):
     assert not path.blob
     path = HailAzureBlobPath('hail-az://fakeaccount/fakecontainer/fakeblob')
     assert path.blob == 'fakeblob' 
-
-
-# def test_invalid_path():
-#     HailAzureBlobPath('hail-az://@#$%')
     

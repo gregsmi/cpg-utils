@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 import mimetypes
 from azure.identity import DefaultAzureCredential, ClientSecretCredential
 from azure.storage.blob import BlobServiceClient
+#import azure.storage.blob
 from cloudpathlib import AzureBlobClient, AzureBlobPath
 from cloudpathlib.client import register_client_class
 from cloudpathlib.cloudpath import register_path_class, CloudPath
