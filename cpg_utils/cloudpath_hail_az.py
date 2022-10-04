@@ -55,14 +55,11 @@ class HailAzureBlobClient(AzureBlobClient):
         parsed = urlparse(account_url)
         if parsed.query is not None and len(parsed.query) > 0:
             # Use passed embedded SAS token, not sure why the length check is necessary
-            print(f'using SAS token, query={parsed.query}')
             service_client = BlobServiceClient(account_url=account_url)
         elif (azure_application_credentials_file := os.getenv("AZURE_APPLICATION_CREDENTIALS")) is not None:
-            print('instantiating ClientSecretCredential')
             msal_credential = self._msal_credential_from_file(azure_application_credentials_file)
             service_client = BlobServiceClient(account_url=account_url, credential=msal_credential)
         else:
-            print('instantiating DefaultAzureCredential')
             # EnvironmentCredential, ManagedIdentityCredential, AzureCliCredential
             msal_credential = DefaultAzureCredential(
                 exclude_powershell_credential = True,
