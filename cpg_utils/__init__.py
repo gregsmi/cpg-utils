@@ -8,6 +8,8 @@ import coloredlogs
 from cloudpathlib import CloudPath
 from cloudpathlib.anypath import to_anypath
 
+# trigger registration for hail-az:// prefixed CloudPaths
+import cpg_utils.cloudpath_hail_az
 
 coloredlogs.install(
     level='DEBUG', fmt='%(asctime)s %(levelname)s (%(name)s %(lineno)s): %(message)s'
