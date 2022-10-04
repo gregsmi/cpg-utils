@@ -53,7 +53,7 @@ class HailAzureBlobClient(AzureBlobClient):
             raise ValueError("account_url must be specified")
 
         parsed = urlparse(account_url)
-        if parsed.query is not None and len(parsed.query) > 0:
+        if bool(parsed.query):
             # Use passed embedded SAS token, not sure why the length check is necessary
             service_client = BlobServiceClient(account_url=account_url)
         elif (azure_application_credentials_file := os.getenv("AZURE_APPLICATION_CREDENTIALS")) is not None:
