@@ -12,7 +12,7 @@ DEFAULT_CONFIG = {
     "analysis_runner_project": "analysis-runner",
     "analysis_runner_host": "http://localhost:8001",
     "container_registry": "australia-southeast1-docker.pkg.dev",
-    "web_url_template": "https://{namespace}-web.populationgenomics.org.au/{dataset}"
+    "web_host_base": "web.populationgenomics.org.au"
 }
 
 
@@ -41,7 +41,7 @@ class DeployConfig:
         analysis_runner_project: Optional[str],
         analysis_runner_host: Optional[str],
         container_registry: Optional[str],
-        web_url_template: Optional[str],
+        web_host_base: Optional[str],
     ):
         self.cloud = cloud or DEFAULT_CONFIG["cloud"]
         self.sample_metadata_project = sample_metadata_project or DEFAULT_CONFIG["sample_metadata_project"]
@@ -49,7 +49,7 @@ class DeployConfig:
         self.analysis_runner_project = analysis_runner_project or DEFAULT_CONFIG["analysis_runner_project"]
         self.analysis_runner_host = analysis_runner_host or DEFAULT_CONFIG["analysis_runner_host"]
         self.container_registry = container_registry or DEFAULT_CONFIG["container_registry"]
-        self.web_url_template = web_url_template or DEFAULT_CONFIG["web_url_template"]
+        self.web_host_base = web_host_base or DEFAULT_CONFIG["web_host_base"]
         assert self.cloud in ("gcp", "azure"), f"Invalid cloud specification '{self.cloud}'"
 
     def to_dict(self) -> Dict[str, str]:
