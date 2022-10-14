@@ -21,7 +21,6 @@ setup(
         'cloudpathlib[all]',
         'toml',
         'frozendict',
-        'coloredlogs',
     ],
     extras_require={
         'test': [
@@ -33,6 +32,19 @@ setup(
             'hail',
             'networkx',
             'sample-metadata-ms',
+            'analysis-runner-ms',
+            'gnomad',
+            'pandas',
+            'peddy',
+            'fsspec',
+            'slack_sdk',
+            'elasticsearch == 8.*',
+            'coloredlogs',
+            'bokeh',
+            'numpy',
+            'click',
+            'elasticsearch == 8.*',
+            'slack_sdk',
         ],
     },
     package_data={

@@ -5,6 +5,7 @@ import inspect
 import os
 import tempfile
 import textwrap
+import typing
 from enum import Enum
 from typing import Optional, List, Union
 from abc import ABC, abstractmethod
@@ -40,9 +41,9 @@ def init_batch(**kwargs):
     if Env._hc:  # pylint: disable=W0212
         return  # already initialised
     kwargs.setdefault('token', os.environ.get('HAIL_TOKEN'))
-    kwargs.setdefault('default_reference', genome_build())
     asyncio.get_event_loop().run_until_complete(
         hl.init_batch(
+            default_reference=genome_build(),
             billing_project=get_config()['hail']['billing_project'],
             remote_tmpdir=remote_tmpdir(),
             **kwargs,
@@ -143,13 +144,17 @@ class AzurePathScheme(PathScheme):
 
 class LocalPathScheme(PathScheme):
     """
-    Local posix path scheme. Requires workflow/local_dir to be set
+    Local posix path scheme. Requires workflow/local_dir to be set.
+    Creates directories automatically (mimicking the cloud FS behaviour).
+
+    Useful only for tests, don't use in production.
     """
 
     def __init__(self):
         if not (local_dir := get_config()['workflow'].get('local_dir')):
             local_dir = tempfile.mkdtemp(prefix='cpg-utils-')
         self.local_dir = to_path(local_dir)
+        self.local_dir.mkdir(exist_ok=True, parents=True)
         self.scheme = 'local'
 
     def path_prefix(self, dataset: str, category: str) -> str:
@@ -158,7 +163,9 @@ class LocalPathScheme(PathScheme):
 
     def full_path(self, prefix: str, suffix: str) -> str:
         """Build full path from prefix and suffix"""
-        return str(self.local_dir / prefix / suffix)
+        path = self.local_dir / prefix / suffix
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return str(path)
 
 
 class Namespace(Enum):
@@ -600,3 +607,46 @@ cat << EOT >> script.py
 EOT
 python3 script.py
 """
+
+
+def start_query_context(
+    query_backend: typing.Literal['spark', 'batch', 'local', 'spark_local']
+    | None = None,
+    log_path: str | None = None,
+    dataset: str | None = None,
+    billing_project: str | None = None,
+):
+    """
+    Start Hail Query context, depending on the backend class specified in
+    the hail/query_backend TOML config value.
+    """
+    query_backend = query_backend or get_config().get('hail', {}).get(
+        'query_backend', 'spark'
+    )
+    if query_backend == 'spark':
+        hl.init(default_reference=genome_build())
+    elif query_backend == 'spark_local':
+        local_threads = 2  # https://stackoverflow.com/questions/32356143/what-does-setmaster-local-mean-in-spark
+        hl.init(
+            default_reference=genome_build(),
+            master=f'local[{local_threads}]',  # local[2] means "run spark locally with 2 threads"
+            quiet=True,
+            log=log_path or dataset_path('hail-log.txt', category='tmp'),
+        )
+    elif query_backend == 'local':
+        hl.utils.java.Env.hc()  # force initialization
+    else:
+        assert query_backend == 'batch'
+        if hl.utils.java.Env._hc:  # pylint: disable=W0212
+            return  # already initialised
+        dataset = dataset or get_config()['workflow']['dataset']
+        billing_project = billing_project or get_config()['hail']['billing_project']
+
+        asyncio.get_event_loop().run_until_complete(
+            hl.init_batch(
+                billing_project=billing_project,
+                remote_tmpdir=f'gs://cpg-{dataset}-hail/batch-tmp',
+                token=os.environ.get('HAIL_TOKEN'),
+                default_reference='GRCh38',
+            )
+        )

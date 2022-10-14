@@ -406,7 +406,6 @@ class Stage(Generic[TargetT], ABC):
                 self.required_stages_classes.append(required_stages)
 
         self.tmp_prefix = get_workflow().tmp_prefix / name
-        self.run_id = get_workflow().run_id
 
         # Dependencies. Populated in workflow.run(), after we know all stages.
         self.required_stages: list[Stage] = []
@@ -556,6 +555,7 @@ class Stage(Generic[TargetT], ABC):
                 jobs=outputs.jobs,
                 prev_jobs=inputs.get_jobs(target),
                 meta=outputs.meta,
+                job_attrs=self.get_job_attrs(target),
             )
         return outputs
 
@@ -666,18 +666,6 @@ class Stage(Generic[TargetT], ABC):
             # Do not check the files' existence, assume they don't exist:
             return False, None
 
-    def _queue_reuse_job(
-        self, target: TargetT, found_paths: Path | dict[str, Path]
-    ) -> StageOutput | None:
-        """
-        Queues a [reuse] Job
-        """
-        return self.make_outputs(
-            target=target,
-            data=found_paths,
-            jobs=[get_batch().new_job(f'{self.name} [reuse]', target.get_job_attrs())],
-        )
-
     def get_job_attrs(self, target: TargetT | None = None) -> dict[str, str]:
         """
         Create Hail Batch Job attributes dictionary
@@ -787,6 +775,14 @@ def get_workflow() -> 'Workflow':
     return _workflow
 
 
+def run_workflow(
+    stages: list[StageDecorator] | None = None,
+    wait: bool | None = False,
+) -> 'Workflow':
+    get_workflow().run(stages=stages, wait=wait)
+    return get_workflow()
+
+
 class Workflow:
     """
     Encapsulates a Hail Batch object, stages, and a cohort of datasets of samples.
@@ -802,16 +798,28 @@ class Workflow:
                 'Workflow already initialised. Use get_workflow() to get the instance'
             )
 
-        self.run_id = get_config()['workflow'].get('run_id', timestamp())
-        self.tmp_prefix = get_cohort().analysis_dataset.tmp_prefix() / self.run_id
-
         analysis_dataset = get_config()['workflow']['dataset']
         name = get_config()['workflow'].get('name')
         description = get_config()['workflow'].get('description')
         name = name or description or analysis_dataset
         self.name = slugify(name)
+
+        self.output_version: str | None = None
+        if output_version := get_config()['workflow'].get('output_version'):
+            output_version = slugify(output_version)
+            if not output_version.startswith('v'):
+                output_version = f'v{output_version}'
+            self.output_version = output_version
+
+        self.run_timestamp: str = get_config()['workflow'].get(
+            'run_timestamp', timestamp()
+        )
+
+        # Description
         description = description or name
-        description += f': run_id={self.run_id}'
+        if self.output_version:
+            description += f': output_version={self.output_version}'
+        description += f': run_timestamp={self.run_timestamp}'
         if sequencing_type := get_config()['workflow'].get('sequencing_type'):
             description += f' [{sequencing_type}]'
         if ds_set := set(d.name for d in get_cohort().get_datasets()):
@@ -822,6 +830,26 @@ class Workflow:
         if get_config()['workflow'].get('status_reporter') == 'metamist':
             self.status_reporter = MetamistStatusReporter()
         self._stages: list[StageDecorator] | None = stages
+
+    @property
+    def tmp_prefix(self) -> Path:
+        return self._prefix(category='tmp')
+
+    @property
+    def web_prefix(self) -> Path:
+        return self._prefix(category='web')
+
+    @property
+    def prefix(self) -> Path:
+        return self._prefix()
+
+    def _prefix(self, category=None) -> Path:
+        prefix = get_cohort().analysis_dataset.prefix(category=category) / self.name
+        if self.output_version:
+            prefix /= self.output_version
+        else:
+            prefix /= self.run_timestamp
+        return prefix
 
     def run(
         self,
@@ -840,7 +868,12 @@ class Workflow:
         return get_batch().run(wait=wait)
 
     @staticmethod
-    def _process_first_last_stages(stages: list[Stage], graph: nx.DiGraph):
+    def _process_first_last_stages(
+        stages: list[Stage],
+        graph: nx.DiGraph,
+        first_stages: list[str],
+        last_stages: list[str],
+    ):
         """
         Applying first_stages and last_stages config options. Would skip all stages
         before first_stages, and all stages after last_stages (i.e. descendants and
@@ -850,20 +883,17 @@ class Workflow:
         stage_names = list(stg.name for stg in stages)
         lower_names = {s.lower() for s in stage_names}
 
-        def _get(param: str) -> list[str]:
-            val = get_config()['workflow'].get(param, [])
-            _names = val if isinstance(val, list) else [val]
-            for _name in _names:
-                if _name.lower() not in lower_names:
+        for param, _stage_list in [
+            ('first_stages', first_stages),
+            ('last_stages', last_stages),
+        ]:
+            for _s_name in _stage_list:
+                if _s_name.lower() not in lower_names:
                     raise WorkflowError(
-                        f'Value in workflow/{param} "{_name}" must be a stage name '
+                        f'Value in workflow/{param} "{_s_name}" must be a stage name '
                         f'or a subset of stages from the available list: '
                         f'{", ".join(stage_names)}'
                     )
-            return _names
-
-        first_stages = _get('first_stages')
-        last_stages = _get('last_stages')
 
         for fs in first_stages:
             for descendant in nx.descendants(graph, fs):
@@ -893,16 +923,25 @@ class Workflow:
         Iterate over stages and call their queue_for_cohort(cohort) methods;
         through that, creates all Hail Batch jobs through Stage.queue_jobs().
         """
-        _stages_d: dict[str, Stage] = dict()
+        # TOML options to configure stages:
+        skip_stages = get_config()['workflow'].get('skip_stages', [])
+        only_stages = get_config()['workflow'].get('only_stages', [])
+        first_stages = get_config()['workflow'].get('first_stages', [])
+        last_stages = get_config()['workflow'].get('last_stages', [])
+
+        if only_stages or last_stages:
+            # If stages are requested explicitly, we don't need other stages from
+            # the default list:
+            requested_stages = [
+                s for s in requested_stages if s.__name__ in only_stages + last_stages
+            ]
 
         # Round 1: initialising stage objects.
+        _stages_d: dict[str, Stage] = {}
         for cls in requested_stages:
             if cls.__name__ in _stages_d:
                 continue
             _stages_d[cls.__name__] = cls()
-
-        skip_stages = get_config()['workflow'].get('skip_stages', [])
-        only_stages = get_config()['workflow'].get('only_stages', [])
 
         # Round 2: depth search to find implicit stages.
         depth = 0
@@ -956,7 +995,7 @@ class Workflow:
         stages = [_stages_d[name] for name in stage_names]
 
         # Round 5: applying workflow options first_stages and last_stages.
-        self._process_first_last_stages(stages, dag)
+        self._process_first_last_stages(stages, dag, first_stages, last_stages)
 
         if not (final_set_of_stages := [s.name for s in stages if not s.skipped]):
             raise WorkflowError('No stages to run')
@@ -1023,7 +1062,7 @@ class SampleStage(Stage[Sample], ABC):
                 f'{len(cohort.get_datasets())}/'
                 f'{len(cohort.get_datasets(only_active=False))} '
                 f'usable (active=True) datasets found in the cohort. Check that '
-                f'`workflow.datasets` is provided, and not all datasets are skipped '
+                f'`workflow.input_datasets` is provided, and not all datasets are skipped '
                 f'via workflow.skip_datasets`'
             )
             return output_by_target
@@ -1117,7 +1156,7 @@ class DatasetStage(Stage, ABC):
                 f'{len(cohort.get_datasets())}/'
                 f'{len(cohort.get_datasets(only_active=False))} '
                 f'usable (active=True) datasets found in the cohort. Check that '
-                f'`workflow.datasets` is provided, and not all datasets are skipped '
+                f'`workflow.input_datasets` is provided, and not all datasets are skipped '
                 f'via workflow.skip_datasets`'
             )
             return output_by_target

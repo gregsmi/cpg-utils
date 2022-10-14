@@ -5,6 +5,7 @@ Helpers to communicate with the sample-metadata database.
 import logging
 import pprint
 import traceback
+from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
@@ -158,6 +159,76 @@ class Metamist:
         self.papi = ParticipantApi()
         self.fapi = FamilyApi()
 
+    def get_sample_entries(self, dataset_name: str) -> list[dict]:
+        """
+        Retrieve sample entries for a dataset, in the context of access level
+        and filtering options.
+        """
+        metamist_proj = dataset_name
+        if get_config()['workflow']['access_level'] == 'test':
+            metamist_proj += '-test'
+
+        skip_samples = get_config()['workflow'].get('skip_samples', [])
+        only_samples = get_config()['workflow'].get('only_samples', [])
+
+        sample_entries = self.sapi.get_samples(
+            body_get_samples={'project_ids': [metamist_proj]}
+        )
+        sample_entries = _filter_sample_entries(
+            sample_entries,
+            dataset_name,
+            skip_samples=skip_samples,
+            only_samples=only_samples,
+        )
+        return sample_entries
+
+    def get_sequence_entries_by_sid(
+        self,
+        sample_ids: list[str],
+        sequencing_type: str,
+    ) -> dict[str, list[dict]]:
+        """
+        Retrieve sample entries for a dataset, in the context of sample IDs
+        and sequencing type.
+        """
+        entries: list[dict] = self.seqapi.get_sequences_by_sample_ids(
+            sample_ids, get_latest_sequence_only=False
+        )
+        entries = [seq for seq in entries if str(seq['type']) == sequencing_type]
+        entries_by_sid = defaultdict(list)
+        for entry in entries:
+            entries_by_sid[entry['sample_id']].append(entry)
+        return entries_by_sid
+
+    def get_participant_entries_by_sid(self, dataset_name: str) -> dict[str, dict]:
+        """
+        Retrieve participant entries for a dataset, in the context of access level.
+        """
+        metamist_proj = dataset_name
+        if get_config()['workflow']['access_level'] == 'test':
+            metamist_proj += '-test'
+
+        pid_sid_multi = self.papi.get_external_participant_id_to_internal_sample_id(
+            metamist_proj
+        )
+        sid_by_pid = {}
+        for group in pid_sid_multi:
+            pid = group[0].strip()
+            for sid in group[1:]:
+                sid_by_pid[pid] = sid
+
+        entries = self.papi.get_participants(metamist_proj)
+        participant_entry_by_sid = {}
+        for entry in entries:
+            pid = entry['external_id']
+            if not (sid := sid_by_pid.get(pid)):
+                # This is an expected behaviour: dummy participant entries might be
+                # created to fill in the PED data. We should just ignore participants
+                # with no associated samples.
+                continue
+            participant_entry_by_sid[sid] = entry
+        return participant_entry_by_sid
+
     def update_analysis(self, analysis: Analysis, status: AnalysisStatus):
         """
         Update "status" of an Analysis entry.
@@ -179,12 +250,12 @@ class Metamist:
         """
         Query the DB to find the last completed joint-calling analysis for the samples.
         """
-        project = dataset or self.default_dataset
+        metamist_proj = dataset or self.default_dataset
         if get_config()['workflow']['access_level'] == 'test':
-            project += '-test'
+            metamist_proj += '-test'
         try:
             data = self.aapi.get_latest_complete_analysis_for_type(
-                project=project,
+                project=metamist_proj,
                 analysis_type=models.AnalysisType('joint-calling'),
             )
         except ApiException:
@@ -198,7 +269,7 @@ class Metamist:
             return None
         return a
 
-    def find_analyses_by_sid(
+    def get_analyses_by_sid(
         self,
         sample_ids: list[str],
         analysis_type: AnalysisType,
@@ -207,25 +278,30 @@ class Metamist:
         dataset: str | None = None,
     ) -> dict[str, Analysis]:
         """
-        Query the DB to find the last completed analysis for the type and samples,
-        one Analysis object per sample. Assumes the analysis is defined for a single
-        sample (e.g. cram, gvcf).
+        Query the DB to find the last completed analysis for the type, sample ids,
+        and sequencing type, one Analysis object per sample. Assumes the analysis
+        is defined for a single sample (that is, analysis_type=cram|gvcf|qc).
         """
         dataset = dataset or self.default_dataset
-        project = dataset or self.default_dataset
+        metamist_proj = dataset or self.default_dataset
         if get_config()['workflow']['access_level'] == 'test':
-            project += '-test'
+            metamist_proj += '-test'
 
         analysis_per_sid: dict[str, Analysis] = dict()
 
-        logging.info(f'Querying {analysis_type} analysis entries for {project}...')
+        logging.info(
+            f'Querying {analysis_type} analysis entries for {metamist_proj}...'
+        )
+        meta = meta or {}
+        meta['sequencing_type'] = get_config()['workflow']['sequencing_type']
+
         datas = self.aapi.query_analyses(
             models.AnalysisQueryModel(
-                projects=[project],
+                projects=[metamist_proj],
                 sample_ids=sample_ids,
                 type=models.AnalysisType(analysis_type.value),
                 status=models.AnalysisStatus(analysis_status.value),
-                meta=meta or {},
+                meta=meta,
             )
         )
 
@@ -238,7 +314,7 @@ class Metamist:
             assert len(a.sample_ids) == 1, data
             analysis_per_sid[list(a.sample_ids)[0]] = a
         logging.info(
-            f'Querying {analysis_type} analysis entries for {project}: '
+            f'Querying {analysis_type} analysis entries for {metamist_proj}: '
             f'found {len(analysis_per_sid)}'
         )
         return analysis_per_sid
@@ -256,9 +332,9 @@ class Metamist:
         Tries to create an Analysis entry, returns its id if successful.
         """
         dataset = dataset or self.default_dataset
-        project = dataset or self.default_dataset
+        metamist_proj = dataset or self.default_dataset
         if get_config()['workflow']['access_level'] == 'test':
-            project += '-test'
+            metamist_proj += '-test'
 
         if isinstance(type_, AnalysisType):
             type_ = type_.value
@@ -273,14 +349,16 @@ class Metamist:
             meta=meta or {},
         )
         try:
-            aid = self.aapi.create_new_analysis(project=project, analysis_model=am)
+            aid = self.aapi.create_new_analysis(
+                project=metamist_proj, analysis_model=am
+            )
         except ApiException:
             traceback.print_exc()
             return None
         else:
             logging.info(
                 f'Created Analysis(id={aid}, type={type_}, status={status}, '
-                f'output={str(output)}) in {project}'
+                f'output={str(output)}) in {metamist_proj}'
             )
             return aid
 
@@ -382,14 +460,16 @@ class Metamist:
         """
         Retrieve PED lines for a specified SM project, with external participant IDs.
         """
-        dataset = dataset or self.default_dataset
+        metamist_proj = dataset or self.default_dataset
+        if get_config()['workflow']['access_level'] == 'test':
+            metamist_proj += '-test'
 
-        families = self.fapi.get_families(dataset)
-        family_ids = [family['id'] for family in families]
+        entries = self.fapi.get_families(metamist_proj)
+        family_ids = [entry['id'] for entry in entries]
         ped_entries = self.fapi.get_pedigree(
             internal_family_ids=family_ids,
-            response_type='json',
-            project=dataset,
+            export_type='json',
+            project=metamist_proj,
             replace_with_participant_external_ids=True,
         )
 
@@ -412,7 +492,11 @@ class Sequence:
     alignment_input: AlignmentInput | None = None
 
     @staticmethod
-    def parse(data: dict, check_existence: bool = False) -> 'Sequence':
+    def parse(
+        data: dict,
+        check_existence: bool = False,
+        parse_reads: bool = True,
+    ) -> 'Sequence':
         """
         Create from a dictionary.
         """
@@ -432,29 +516,23 @@ class Sequence:
             meta=data['meta'],
             sequencing_type=sequencing_type,
         )
-        if data['meta'].get('reads'):
-            if alignment_input := Sequence._parse_reads(
+        if parse_reads:
+            mm_seq.alignment_input = Sequence.parse_reads(
                 sample_id=sample_id,
                 meta=data['meta'],
                 check_existence=check_existence,
-            ):
-                mm_seq.alignment_input = alignment_input
-        else:
-            logging.warning(
-                f'{sample_id} sequence: no meta/reads found with FASTQ information'
             )
         return mm_seq
 
     @staticmethod
-    def _parse_reads(  # pylint: disable=too-many-return-statements
+    def parse_reads(  # pylint: disable=too-many-return-statements
         sample_id: str,
         meta: dict,
         check_existence: bool,
-    ) -> AlignmentInput | None:
+    ) -> AlignmentInput:
         """
         Parse a AlignmentInput object from the meta dictionary.
-
-        @param check_existence: check if fastq/crams exist on buckets.
+        `check_existence`: check if fastq/crams exist on buckets.
         Default value is pulled from self.metamist and can be overridden.
         """
         reads_data = meta.get('reads')
@@ -462,38 +540,34 @@ class Sequence:
         reference_assembly = meta.get('reference_assembly', {}).get('location')
 
         if not reads_data:
-            logging.error(f'{sample_id}: no "meta/reads" field in meta')
-            return None
+            raise MetamistError(f'{sample_id}: no "meta/reads" field in meta')
         if not reads_type:
-            logging.error(f'{sample_id}: no "meta/reads_type" field in meta')
-            return None
+            raise MetamistError(f'{sample_id}: no "meta/reads_type" field in meta')
         supported_types = ('fastq', 'bam', 'cram')
         if reads_type not in supported_types:
-            logging.error(
+            raise MetamistError(
                 f'{sample_id}: ERROR: "reads_type" is expected to be one of '
                 f'{supported_types}'
             )
-            return None
 
         if reads_type in ('bam', 'cram'):
             if len(reads_data) > 1:
-                logging.error(f'{sample_id}: supporting only single bam/cram input')
-                return None
+                raise MetamistError(
+                    f'{sample_id}: supporting only single bam/cram input'
+                )
 
             location = reads_data[0]['location']
             if not (location.endswith('.cram') or location.endswith('.bam')):
-                logging.error(
+                raise MetamistError(
                     f'{sample_id}: ERROR: expected the file to have an extension '
                     f'.cram or .bam, got: {location}'
                 )
-                return None
             if get_config()['workflow']['access_level'] == 'test':
                 location = location.replace('-main-upload/', '-test-upload/')
             if check_existence and not exists(location):
-                logging.error(
+                raise MetamistError(
                     f'{sample_id}: ERROR: index file does not exist: {location}'
                 )
-                return None
 
             # Index:
             index_location = None
@@ -505,7 +579,7 @@ class Sequence:
                     or location.endswith('.bai')
                     and not index_location.endswith('.bai')
                 ):
-                    logging.error(
+                    raise MetamistError(
                         f'{sample_id}: ERROR: expected the index file to have an extension '
                         f'.crai or .bai, got: {index_location}'
                     )
@@ -514,10 +588,9 @@ class Sequence:
                         '-main-upload/', '-test-upload/'
                     )
                 if check_existence and not exists(index_location):
-                    logging.error(
+                    raise MetamistError(
                         f'{sample_id}: ERROR: index file does not exist: {index_location}'
                     )
-                    return None
 
             if location.endswith('.cram'):
                 return CramPath(
@@ -547,17 +620,15 @@ class Sequence:
                         '-main-upload/', '-test-upload/'
                     )
                 if check_existence and not exists(lane_pair[0]['location']):
-                    logging.error(
+                    raise MetamistError(
                         f'{sample_id}: ERROR: read 1 file does not exist: '
                         f'{lane_pair[0]["location"]}'
                     )
-                    return None
                 if check_existence and not exists(lane_pair[1]['location']):
-                    logging.error(
+                    raise MetamistError(
                         f'{sample_id}: ERROR: read 2 file does not exist: '
                         f'{lane_pair[1]["location"]}'
                     )
-                    return None
 
                 fastq_pairs.append(
                     FastqPair(
@@ -567,3 +638,30 @@ class Sequence:
                 )
 
             return fastq_pairs
+
+
+def _filter_sample_entries(
+    entries: list[dict[str, str]],
+    dataset_name: str,
+    skip_samples: list[str] | None = None,
+    only_samples: list[str] | None = None,
+) -> list[dict]:
+    """
+    Apply the only_samples and skip_samples filters to sample entries.
+    """
+
+    filtered_entries = []
+    for entry in entries:
+        cpgid = entry['id']
+        extid = entry['external_id']
+        if only_samples:
+            if cpgid in only_samples or extid in only_samples:
+                logging.info(f'Picking sample: {dataset_name}|{cpgid}|{extid}')
+            else:
+                continue
+        if skip_samples:
+            if cpgid in skip_samples or extid in skip_samples:
+                logging.info(f'Skipping sample: {dataset_name}|{cpgid}|{extid}')
+                continue
+        filtered_entries.append(entry)
+    return filtered_entries
