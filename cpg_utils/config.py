@@ -6,7 +6,7 @@ from typing import Optional, List, Dict
 import toml
 from cloudpathlib import AnyPath
 from frozendict import frozendict
-
+from .deploy_config import DeployConfig, set_deploy_config
 
 # We use these globals for lazy initialization, but pylint doesn't like that.
 # pylint: disable=global-statement, invalid-name
@@ -73,6 +73,11 @@ def get_config() -> frozendict:
             f'Configuration at {",".join(_config_paths)}:\n{toml.dumps(dict(_config))}'
         )
 
+        # Update deployment config if available.
+        if 'CPG_DEPLOY_CONFIG' in _config:
+            set_deploy_config(DeployConfig(**_config['CPG_DEPLOY_CONFIG']))
+
+
     return _config
 
 
@@ -101,6 +106,15 @@ def read_configs(config_paths: List[str]) -> frozendict:
     image_registry_prefix = "australia-southeast1-docker.pkg.dev/cpg-common/images"
     reference_prefix = "gs://cpg-reference"
     output_prefix = "plasma/chr22/v6"
+
+    [CPG_DEPLOY_CONFIG]
+    cloud = "gcp",
+    sample_metadata_project = "sample-metadata",
+    sample_metadata_host = "http://localhost:8000",
+    analysis_runner_project = "analysis-runner",
+    analysis_runner_host = "http://localhost:8001",
+    container_registry = "australia-southeast1-docker.pkg.dev",
+    web_host_base = "web.populationgenomics.org.au"
 
     >>> from cpg_utils.config import get_config
     >>> get_config()['workflow']['dataset']

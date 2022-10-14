@@ -14,6 +14,7 @@ import hailtop.batch as hb
 from hail.utils.java import Env
 
 from cpg_utils.config import get_config
+from cpg_utils.storage import get_dataset_bucket_url
 from cpg_utils import to_path, Path
 
 
@@ -38,13 +39,12 @@ def init_batch(**kwargs):
     # noinspection PyProtectedMember
     if Env._hc:  # pylint: disable=W0212
         return  # already initialised
-    dataset = get_config()['workflow']['dataset']
     kwargs.setdefault('token', os.environ.get('HAIL_TOKEN'))
     kwargs.setdefault('default_reference', genome_build())
     asyncio.get_event_loop().run_until_complete(
         hl.init_batch(
             billing_project=get_config()['hail']['billing_project'],
-            remote_tmpdir=remote_tmpdir(f'cpg-{dataset}-hail'),
+            remote_tmpdir=remote_tmpdir(),
             **kwargs,
         )
     )
@@ -74,7 +74,7 @@ def remote_tmpdir(hail_bucket: Optional[str] = None) -> str:
     """
     bucket = hail_bucket or get_config().get('hail', {}).get('bucket')
     assert bucket, f'hail_bucket was not set by argument or configuration'
-    return f'gs://{bucket}/batch-tmp'
+    return f'{bucket}/batch-tmp'
 
 
 class PathScheme(ABC):
