@@ -48,7 +48,8 @@ class DataManagerGCP(DataManager):
 
     def get_dataset_bucket_url(self, dataset: str, bucket_type: str) -> str:
         """Build dataset-specific Hail-style bucket URL for GCP ("gs://...")."""
-        return f"gs://cpg-{dataset}-{bucket_type}"
+        bucket_name = f"{dataset}-{bucket_type}" if dataset else "{bucket_type}"
+        return f"gs://cpg-{bucket_name}"
 
     def get_blob(self, dataset: Optional[str], bucket_type: str, blob_path: str) -> Optional[bytes]:
         """Reads a GCP storage bucket blob."""
@@ -89,7 +90,8 @@ class DataManagerAzure(DataManager):
 
     def get_dataset_bucket_url(self, dataset: str, bucket_type: str) -> str:
         """Build dataset-specific Hail-style bucket URL for Azure ("hail-az://...")."""
-        return f"hail-az://{self.get_storage_account(dataset)}/cpg-{dataset}-{bucket_type}"
+        bucket_name = f"{dataset}-{bucket_type}" if dataset else "{bucket_type}"
+        return f"hail-az://{self.get_storage_account(dataset)}/cpg-{bucket_name}"
 
     def get_blob(self, dataset: Optional[str], bucket_type: str, blob_path: str) -> Optional[bytes]:
         """Reads an Azure storage blob."""
