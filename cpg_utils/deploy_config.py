@@ -53,7 +53,8 @@ class DeployConfig:
         assert self.cloud in ("gcp", "azure"), f"Invalid cloud specification '{self.cloud}'"
 
     def to_dict(self) -> Dict[str, str]:
-        return self.__dict__.copy()
+        d = self.__dict__.copy()
+        return {x: d[x] for x in d.keys() if not x.startswith('_')}
 
     @property
     def secret_manager(self) -> SecretManager:
