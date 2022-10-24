@@ -2,24 +2,21 @@
 Test workflows.status_reporter
 """
 
-import toml
-from pytest_mock import MockFixture
+import os
+from unittest.mock import patch
 
-from cpg_utils import to_path, Path
-from cpg_utils.config import set_config_paths, update_dict
+import toml
+from cpg_utils import Path, to_path
+from cpg_utils.config import get_config, set_config_paths, update_dict
 from cpg_utils.hail_batch import dataset_path
-from cpg_utils.workflows.inputs import get_cohort
-from cpg_utils.workflows.targets import Sample, Cohort
-from cpg_utils.workflows.utils import timestamp
 from cpg_utils.workflows.batch import get_batch
-from cpg_utils.workflows.workflow import (
-    SampleStage,
-    StageInput,
-    StageOutput,
-    ExpectedResultT,
-    stage,
-    run_workflow,
-)
+from cpg_utils.workflows.inputs import get_cohort
+from cpg_utils.workflows.targets import Cohort, Sample
+from cpg_utils.workflows.utils import timestamp
+from cpg_utils.workflows.workflow import (ExpectedResultT, SampleStage,
+                                          StageInput, StageOutput,
+                                          run_workflow, stage)
+from pytest_mock import MockFixture
 
 tmp_dir_path = to_path(__file__).parent / 'results' / timestamp()
 tmp_dir_path = tmp_dir_path.absolute()
@@ -56,7 +53,14 @@ def _set_config(dir_path: Path, extra_conf: dict | None = None):
     set_config_paths([str(config_path)])
 
 
-def test_status_reporter(mocker: MockFixture):
+def mock_get_dataset_bucket_url(dataset: str, bucket_type: str) -> str:
+    config = get_config()
+    root = config['workflow']['local_dir']
+    return os.path.join(root, f'{dataset}-{bucket_type}')
+
+
+@patch('cpg_utils.hail_batch.get_dataset_bucket_url', side_effect=mock_get_dataset_bucket_url)
+def test_status_reporter(mock_obj, mocker: MockFixture):
     """
     Testing metamist status reporter.
     """

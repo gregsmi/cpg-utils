@@ -78,96 +78,6 @@ def remote_tmpdir(hail_bucket: Optional[str] = None) -> str:
     return f'{bucket}/batch-tmp'
 
 
-class PathScheme(ABC):
-    """
-    Cloud storage path scheme. Constructs full paths to buckets and files.
-    """
-
-    @abstractmethod
-    def path_prefix(self, dataset: str, category: str) -> str:
-        """Build path prefix used in dataset_path"""
-
-    @abstractmethod
-    def full_path(self, prefix: str, suffix: str) -> str:
-        """Build full path from prefix and suffix"""
-
-    @staticmethod
-    def parse(val: str) -> 'PathScheme':
-        """Parse subclass name from string"""
-        if val == 'gs':
-            return GSPathScheme()
-        if val == 'hail-az':
-            return AzurePathScheme()
-        if val == 'local':
-            return LocalPathScheme()
-        raise ValueError(
-            f'Unsupported path format: {val}. Available: gs, hail-az, local'
-        )
-
-
-class GSPathScheme(PathScheme):
-    """
-    Google Cloud Storage path scheme.
-    """
-
-    def __init__(self):
-        self.scheme = 'gs'
-        self.prefix = 'cpg'
-
-    def path_prefix(self, dataset: str, category: str) -> str:
-        """Build path prefix used in dataset_path"""
-        return f'{self.prefix}-{dataset}-{category}'
-
-    def full_path(self, prefix: str, suffix: str) -> str:
-        """Build full path from prefix and suffix"""
-        return os.path.join(f'{self.scheme}://', prefix, suffix)
-
-
-class AzurePathScheme(PathScheme):
-    """
-    Azure Blob Storage path scheme, following the Hail Batch hail-az format.
-    """
-
-    def __init__(self, account: Optional[str] = 'cpg'):
-        config = get_config()
-        self.scheme = 'hail-az'
-        self.account = config['workflow'].get('azure_account', account)
-
-    def path_prefix(self, dataset: str, category: str) -> str:
-        """Build path prefix used in dataset_path"""
-        return f'{self.account}/{dataset}-{category}'
-
-    def full_path(self, prefix: str, suffix: str) -> str:
-        """Build full path from prefix and suffix"""
-        return os.path.join(f'{self.scheme}://', prefix, suffix)
-
-
-class LocalPathScheme(PathScheme):
-    """
-    Local posix path scheme. Requires workflow/local_dir to be set.
-    Creates directories automatically (mimicking the cloud FS behaviour).
-
-    Useful only for tests, don't use in production.
-    """
-
-    def __init__(self):
-        if not (local_dir := get_config()['workflow'].get('local_dir')):
-            local_dir = tempfile.mkdtemp(prefix='cpg-utils-')
-        self.local_dir = to_path(local_dir)
-        self.local_dir.mkdir(exist_ok=True, parents=True)
-        self.scheme = 'local'
-
-    def path_prefix(self, dataset: str, category: str) -> str:
-        """Build path prefix used in dataset_path"""
-        return f'{dataset}-{category}'
-
-    def full_path(self, prefix: str, suffix: str) -> str:
-        """Build full path from prefix and suffix"""
-        path = self.local_dir / prefix / suffix
-        path.parent.mkdir(parents=True, exist_ok=True)
-        return str(path)
-
-
 class Namespace(Enum):
     """
     Storage namespace.
@@ -202,34 +112,19 @@ def dataset_path(
     category: Optional[str] = None,
     dataset: Optional[str] = None,
     access_level: Optional[str] = None,
-    path_scheme: Optional[str] = None,
 ) -> str:
     """
-    Returns a full path for the current dataset, given a category and path suffix.
+    Returns a full path ('gs:' or 'hail-az:') for the current dataset, given a path suffix.
 
     This is useful for specifying input files, as in contrast to the output_path
     function, dataset_path does _not_ take the `workflow/output_prefix` config variable
     into account.
 
-    Examples
-    --------
-    Assuming that the analysis-runner has been invoked with
-    `--dataset fewgenomes --access-level test --output 1kg_pca/v42`:
-
-    >>> from cpg_utils.hail_batch import dataset_path
-    >>> dataset_path('1kg_densified/combined.mt')
-    'gs://cpg-fewgenomes-test/1kg_densified/combined.mt'
-    >>> dataset_path('1kg_densified/report.html', 'web')
-    'gs://cpg-fewgenomes-test-web/1kg_densified/report.html'
-    >>> dataset_path('1kg_densified/report.html', path_scheme='hail-az')
-    'hail-az://cpg/fewgenomes-test/1kg_densified/report.html'
-
     Notes
     -----
-    Requires either the
-    * `workflow/dataset` and `workflow/access_level` config variables, or the
-    * `workflow/dataset_path` config variable
-    to be set, where the former takes precedence.
+    Relies on the `CPG_DEPLOY_CONFIG` section of the config file for deployment information, and the 
+    `workflow/dataset` and `workflow/access_level` config variables if not passed in as arguments.
+    These configuration settings are added automatically by analysis-runner.
 
     Parameters
     ----------
@@ -244,9 +139,6 @@ def dataset_path(
         Dataset name, takes precedence over the `workflow/dataset` config variable
     access_level : str, optional
         Access level, takes precedence over the `workflow/access_level` config variable
-    path_scheme: str, optional
-        Cloud storage path scheme, takes precedence over the `workflow/path_scheme`
-        config variable
 
     Returns
     -------
@@ -255,19 +147,16 @@ def dataset_path(
     config = get_config()
     dataset = dataset or config['workflow'].get('dataset')
     access_level = access_level or config['workflow'].get('access_level')
-    path_scheme = path_scheme or config['workflow'].get('path_scheme', 'gs')
 
-    if dataset and access_level:
-        namespace = Namespace.from_access_level(access_level)
-        if category is None:
-            category = namespace.value
-        elif category != 'archive':
-            category = f'{namespace.value}-{category}'
-        prefix = PathScheme.parse(path_scheme).path_prefix(dataset, category)
-    else:
-        prefix = config['workflow']['dataset_path']
+    namespace = Namespace.from_access_level(access_level)
+    if category is None:
+        category = namespace.value
+    elif category != 'archive':
+        category = f'{namespace.value}-{category}'
+    
+    path_prefix = get_dataset_bucket_url(dataset, bucket_type=category)
 
-    return PathScheme.parse(path_scheme).full_path(prefix, suffix)
+    return f'{path_prefix}/{suffix}'
 
 
 def web_url(
@@ -333,9 +222,8 @@ def output_path(suffix: str, category: Optional[str] = None) -> str:
     -------
     str
     """
-    return dataset_path(
-        os.path.join(get_config()['workflow']['output_prefix'], suffix), category
-    )
+    full_suffix = os.path.join(get_config()['workflow']['output_prefix'], suffix)
+    return dataset_path(full_suffix, category)
 
 
 def image_path(key: str) -> str:
