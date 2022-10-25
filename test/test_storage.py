@@ -5,7 +5,6 @@ import google.cloud.storage
 import pytest
 from cpg_utils.deploy_config import set_deploy_config_from_env
 from cpg_utils.storage import clear_data_manager, DataManager, get_data_manager, get_dataset_bucket_url
-from cpg_utils.job_config import get_config, remote_tmpdir, set_config_paths, set_job_config, _validate_configs
 
 
 class MockStorageResponse:
@@ -86,17 +85,7 @@ def test_gcp_storage(monkeypatch):
     assert sm.get_blob("dataset0", "main-read", "missing.json") == None
     sm.set_blob("dataset0", "main-read", "exists.json", bytes("GCP BLOB CONTENTS", "UTF-8"))
 
-    with pytest.raises(ValueError) as e:
-        _validate_configs(["test.txt"])
-    with pytest.raises(ValueError) as e:
-        _validate_configs(["missing.toml"])
-
-    set_config_paths(["config.toml"])
-    assert get_config()["workflow"]["access_level"] == "pytestgcp"
-    set_job_config({"workflow":{"access_level":"pytestgcp"}})
-
     assert get_dataset_bucket_url("dataset0", "test") == "gs://cpg-dataset0-test"
-    assert remote_tmpdir() == "gs://cpg-dataset0-hail/batch-tmp"
 
 
 def test_azure_storage(monkeypatch, mock_config_fixture):
@@ -119,10 +108,4 @@ def test_azure_storage(monkeypatch, mock_config_fixture):
         assert "No such dataset in server config" in str(e.value)
 
     clear_data_manager()
-    set_config_paths([])
-    set_config_paths(["config.toml"])
-    assert get_config()["workflow"]["access_level"] == "pytestaz"
-
     assert sm.get_dataset_bucket_url("dataset1", "test") == "hail-az://dataset1_idsa/cpg-dataset1-test"
-    assert remote_tmpdir("hail-az://dataset1_idsa/cpg-dataset1-hail") == \
-        "hail-az://dataset1_idsa/cpg-dataset1-hail/batch-tmp"
