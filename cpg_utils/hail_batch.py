@@ -533,7 +533,7 @@ def start_query_context(
         asyncio.get_event_loop().run_until_complete(
             hl.init_batch(
                 billing_project=billing_project,
-                remote_tmpdir=f'gs://cpg-{dataset}-hail/batch-tmp',
+                remote_tmpdir=remote_tmpdir(get_dataset_bucket_url(dataset, 'hail')),
                 token=os.environ.get('HAIL_TOKEN'),
                 default_reference='GRCh38',
             )
