@@ -48,12 +48,14 @@ class DataManagerGCP(DataManager):
 
     def get_dataset_bucket_url(self, dataset: str, bucket_type: str) -> str:
         """Build dataset-specific Hail-style bucket URL for GCP ("gs://...")."""
-        bucket_name = f"cpg-{dataset}-{bucket_type}" if dataset else f"cpg-{bucket_type}"
+        org_name = get_deploy_config().deployment_name
+        bucket_name = f"{org_name}-{dataset}-{bucket_type}" if dataset else f"{org_name}-{bucket_type}"
         return f"gs://{bucket_name}"
 
     def get_blob(self, dataset: Optional[str], bucket_type: str, blob_path: str) -> Optional[bytes]:
         """Reads a GCP storage bucket blob."""
-        bucket_name = f"cpg-{dataset}-{bucket_type}" if dataset else f"cpg-{bucket_type}"
+        org_name = get_deploy_config().deployment_name
+        bucket_name = f"{org_name}-{dataset}-{bucket_type}" if dataset else f"{org_name}-{bucket_type}"
         bucket = self._storage_client.bucket(bucket_name)
         blob = bucket.get_blob(blob_path)
     
@@ -61,7 +63,8 @@ class DataManagerGCP(DataManager):
 
     def set_blob(self, dataset: Optional[str], bucket_type: str, blob_path: str, contents: bytes) -> None:
         """Writes a GCP storage bucket blob."""
-        bucket_name = f"cpg-{dataset}-{bucket_type}" if dataset else f"cpg-{bucket_type}"
+        org_name = get_deploy_config().deployment_name
+        bucket_name = f"{org_name}-{dataset}-{bucket_type}" if dataset else f"{org_name}-{bucket_type}"
         bucket = self._storage_client.bucket(bucket_name)
         blob = bucket.blob(blob_path)
         with blob.open(mode="wb") as f:
@@ -84,21 +87,19 @@ class DataManagerAzure(DataManager):
             if dataset not in server_config:
                 raise ValueError(f"No such dataset in server config: {dataset}")
             account = server_config[dataset]["projectId"]
-        else: # Otherwise use the base analysis_runner storage account.
-            account = get_deploy_config().analysis_runner_project
+        else: # Otherwise use the base deployment storage account.
+            account = get_deploy_config().deployment_name
         return f"{account}sa"
 
     def get_dataset_bucket_url(self, dataset: str, bucket_type: str) -> str:
         """Build dataset-specific Hail-style bucket URL for Azure ("hail-az://...")."""
-        container_name = f"cpg-{dataset}-{bucket_type}" if dataset else f"cpg-{bucket_type}"
-        return f"hail-az://{self.get_storage_account(dataset)}/{container_name}"
+        return f"hail-az://{self.get_storage_account(dataset)}/{bucket_type}"
 
     def get_blob(self, dataset: Optional[str], bucket_type: str, blob_path: str) -> Optional[bytes]:
         """Reads an Azure storage blob."""
         storage_url = "https://" + self.get_storage_account(dataset) + ".blob.core.windows.net"
-        container_name = f"cpg-{dataset}-{bucket_type}" if dataset else f"cpg-{bucket_type}"
         blob_client = azure.storage.blob.BlobClient(
-            storage_url, container_name, blob_path, credential=self._credential
+            storage_url, bucket_type, blob_path, credential=self._credential
         )
         try:
             download_stream = blob_client.download_blob()
@@ -110,9 +111,8 @@ class DataManagerAzure(DataManager):
     def set_blob(self, dataset: Optional[str], bucket_type: str, blob_path: str, contents: bytes) -> None:
         """Writes an Azure storage blob."""
         storage_url = "https://" + self.get_storage_account(dataset) + ".blob.core.windows.net"
-        container_name = f"cpg-{dataset}-{bucket_type}" if dataset else f"cpg-{bucket_type}"
         blob_client = azure.storage.blob.BlobClient(
-            storage_url, container_name, blob_path, credential=self._credential
+            storage_url, bucket_type, blob_path, credential=self._credential
         )
         blob_client.upload_blob(data=contents, overwrite=True)
 

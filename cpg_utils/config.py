@@ -115,6 +115,8 @@ def read_configs(config_paths: List[str]) -> frozendict:
     analysis_runner_host = "http://localhost:8001",
     container_registry = "australia-southeast1-docker.pkg.dev",
     web_host_base = "web.populationgenomics.org.au"
+    reference_base = "gs://cpg-reference"
+    deployment_name = "cpg"
 
     >>> from cpg_utils.config import get_config
     >>> get_config()['workflow']['dataset']

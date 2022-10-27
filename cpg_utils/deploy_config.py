@@ -1,7 +1,9 @@
 import json
 import logging
+from dataclasses import dataclass
 from os import getenv
 from typing import Any, Dict, Optional
+
 from .secrets import SecretManager
 
 deploy_config: "DeployConfig" = None
@@ -12,11 +14,23 @@ DEFAULT_CONFIG = {
     "analysis_runner_project": "analysis-runner",
     "analysis_runner_host": "http://localhost:8001",
     "container_registry": "australia-southeast1-docker.pkg.dev",
-    "web_host_base": "web.populationgenomics.org.au"
+    "web_host_base": "web.populationgenomics.org.au",
+    "reference_base": "gs://cpg-reference",
+    "deployment_name": "cpg"
 }
 
-
+@dataclass
 class DeployConfig:
+
+    cloud: str = DEFAULT_CONFIG["cloud"],
+    sample_metadata_project: str = DEFAULT_CONFIG["sample_metadata_project"]
+    sample_metadata_host: str = DEFAULT_CONFIG["sample_metadata_host"]
+    analysis_runner_project: str = DEFAULT_CONFIG["analysis_runner_project"]
+    analysis_runner_host: str = DEFAULT_CONFIG["analysis_runner_host"]
+    container_registry: str = DEFAULT_CONFIG["container_registry"]
+    web_host_base: str = DEFAULT_CONFIG["web_host_base"]
+    reference_base: str = DEFAULT_CONFIG["reference_base"]
+    deployment_name: str = DEFAULT_CONFIG["deployment_name"]
 
     _server_config: Dict[str, Any] = None
     _secret_manager: SecretManager = None
@@ -33,28 +47,8 @@ class DeployConfig:
         deploy_config["sample_metadata_host"] = getenv("SM_HOST_URL", deploy_config["sample_metadata_host"])
         return DeployConfig.from_dict(deploy_config)
 
-    def __init__(
-        self,
-        cloud: Optional[str],
-        sample_metadata_project: Optional[str],
-        sample_metadata_host: Optional[str],
-        analysis_runner_project: Optional[str],
-        analysis_runner_host: Optional[str],
-        container_registry: Optional[str],
-        web_host_base: Optional[str],
-    ):
-        self.cloud = cloud or DEFAULT_CONFIG["cloud"]
-        self.sample_metadata_project = sample_metadata_project or DEFAULT_CONFIG["sample_metadata_project"]
-        self.sample_metadata_host = sample_metadata_host or DEFAULT_CONFIG["sample_metadata_host"]
-        self.analysis_runner_project = analysis_runner_project or DEFAULT_CONFIG["analysis_runner_project"]
-        self.analysis_runner_host = analysis_runner_host or DEFAULT_CONFIG["analysis_runner_host"]
-        self.container_registry = container_registry or DEFAULT_CONFIG["container_registry"]
-        self.web_host_base = web_host_base or DEFAULT_CONFIG["web_host_base"]
-        assert self.cloud in ("gcp", "azure"), f"Invalid cloud specification '{self.cloud}'"
-
     def to_dict(self) -> Dict[str, str]:
-        d = self.__dict__.copy()
-        return {x: d[x] for x in d.keys() if not x.startswith('_')}
+        return {k:v for k,v in self.__dict__.items() if not k.startswith('_')}
 
     @property
     def secret_manager(self) -> SecretManager:
@@ -74,7 +68,8 @@ class DeployConfig:
         return self.secret_manager.read_secret(config_host, config_key)
 
     def read_global_config(self, config_key: str) -> str:
-        return self.read_project_id_config(self.analysis_runner_project, config_key)
+        project_id = self.deployment_name if self.cloud == "azure" else self.analysis_runner_project
+        return self.read_project_id_config(project_id, config_key)
 
     def read_dataset_config(self, dataset: str, config_key: str) -> str:
         if dataset not in self.server_config:

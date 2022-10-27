@@ -49,7 +49,7 @@ class MockStorageClientAzure:
     def __init__(self, *args, **kwargs):
         if len(args) > 2:
             assert args[0] in ["https://dataset1_idsa.blob.core.windows.net", "https://analysis-runnersa.blob.core.windows.net"]
-            assert args[1] in ["cpg-dataset1-main-read", "cpg-config"]
+            assert args[1] in ["main-read", "config"]
             self.path = args[2]
     def download_blob(self):
         if self.path == "missing.json":
@@ -58,7 +58,7 @@ class MockStorageClientAzure:
             return MockStorageResponse(
                 """[hail]
                 billing_project = "dataset1"
-                bucket = "hail-az://dataset1_idsa/cpg-dataset1-hail"
+                bucket = "hail-az://dataset1_idsa/hail"
                 [workflow]
                 access_level = "pytestaz"
                 """
@@ -108,4 +108,4 @@ def test_azure_storage(monkeypatch, mock_config_fixture):
         assert "No such dataset in server config" in str(e.value)
 
     clear_data_manager()
-    assert sm.get_dataset_bucket_url("dataset1", "test") == "hail-az://dataset1_idsa/cpg-dataset1-test"
+    assert sm.get_dataset_bucket_url("dataset1", "test") == "hail-az://dataset1_idsa/test"
