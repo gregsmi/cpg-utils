@@ -25,6 +25,10 @@ class DataManager(ABC):
         return DataManagerGCP()
 
     @abstractmethod
+    def get_global_bucket_url(self, bucket_type: str) -> str:
+        """Return deployment-level bucket URL with Hail-style scheme ("gs:" or "hail-az:")."""
+
+    @abstractmethod
     def get_dataset_bucket_url(self, dataset: str, bucket_type: str) -> str:
         """Build dataset-specific bucket URL with Hail-style scheme ("gs:" or "hail-az:")."""
 
@@ -46,11 +50,15 @@ class DataManagerGCP(DataManager):
         """Loads GCP credentials and caches storage client."""
         self._storage_client = google.cloud.storage.Client()
 
-    def get_dataset_bucket_url(self, dataset: str, bucket_type: str) -> str:
-        """Build dataset-specific Hail-style bucket URL for GCP ("gs://...")."""
+    def get_global_bucket_url(self, bucket_type: str) -> str:
+        """Return deployment-level bucket URLfor GCP ("gs:")."""
         org_name = get_deploy_config().deployment_name
-        bucket_name = f"{org_name}-{dataset}-{bucket_type}" if dataset else f"{org_name}-{bucket_type}"
-        return f"gs://{bucket_name}"
+        return f"gs://{org_name}-{bucket_type}"
+
+    def get_dataset_bucket_url(self, dataset: str, bucket_type: str) -> str:
+        """Build dataset-specific Hail-style bucket URL for GCP ("gs:")."""
+        org_name = get_deploy_config().deployment_name
+        return f"gs://{org_name}-{dataset}-{bucket_type}"
 
     def get_blob(self, dataset: Optional[str], bucket_type: str, blob_path: str) -> Optional[bytes]:
         """Reads a GCP storage bucket blob."""
@@ -79,7 +87,7 @@ class DataManagerAzure(DataManager):
     def __init__(self):
         self._credential = get_azure_credentials()
 
-    def get_storage_account(self, dataset: Optional[str]) -> str:
+    def get_storage_account(self, dataset: Optional[str] = None) -> str:
         """Gets storage host account name based on dataset name or AR base (without scheme)."""
         if dataset:
             # Need to map dataset name to storage account name.
@@ -91,8 +99,12 @@ class DataManagerAzure(DataManager):
             account = get_deploy_config().deployment_name
         return f"{account}sa"
 
+    def get_global_bucket_url(self, bucket_type: str) -> str:
+        """Return deployment-level bucket URL with Hail-style scheme ("gs:" or "hail-az:")."""
+        return f"hail-az://{self.get_storage_account()}/{bucket_type}"
+
     def get_dataset_bucket_url(self, dataset: str, bucket_type: str) -> str:
-        """Build dataset-specific Hail-style bucket URL for Azure ("hail-az://...")."""
+        """Build dataset-specific Hail-style bucket URL for Azure ("hail-az:")."""
         return f"hail-az://{self.get_storage_account(dataset)}/{bucket_type}"
 
     def get_blob(self, dataset: Optional[str], bucket_type: str, blob_path: str) -> Optional[bytes]:
@@ -127,6 +139,11 @@ def get_data_manager() -> DataManager:
 def clear_data_manager() -> None:
     global data_manager
     data_manager = None
+
+
+def get_global_bucket_url(bucket_type: str) -> str:
+    """Return deployment-level bucket URL with Hail-style scheme ("gs:" or "hail-az:")."""
+    return get_data_manager().get_global_bucket_url(bucket_type)
 
 
 def get_dataset_bucket_url(dataset: str, bucket_type: str) -> str:
