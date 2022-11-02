@@ -1,6 +1,6 @@
 pre-commit
 pylint
-bumpversion
+bump2version
 pytest
 pytest-cov
 toml

@@ -28,27 +28,6 @@ setup(
             'pytest-mock',
             'pytest-cov'
         ],
-        'workflows': [
-            'hail',
-            'networkx',
-            'sample-metadata-ms',
-            'analysis-runner-ms',
-            'gnomad',
-            'pandas',
-            'peddy',
-            'fsspec',
-            'slack_sdk',
-            'elasticsearch == 8.*',
-            'coloredlogs',
-            'bokeh',
-            'numpy',
-            'click',
-            'elasticsearch == 8.*',
-            'slack_sdk',
-        ],
-    },
-    package_data={
-        'cpg_utils': ['config-template.toml'],
     },
     keywords='bioinformatics',
     classifiers=[
