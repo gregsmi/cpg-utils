@@ -24,7 +24,6 @@ jobs:
     - name: Test install
       run: |
         pip install .[test]
-        pip install .[workflows]
 
     - name: Test with pytest
       run: pytest
