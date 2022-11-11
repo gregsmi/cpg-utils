@@ -13,7 +13,7 @@ setup(
     license='MIT',
     packages=find_packages(),
     install_requires=[
-        'google-auth',
+        'google-auth>=1.27.0',
         'google-cloud-secret-manager',
         'azure-identity',
         'azure-keyvault-secrets',
