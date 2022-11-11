@@ -1,18 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Optional
 
-import azure.core.exceptions
-import azure.identity
-import azure.storage.blob
-import google.cloud.storage
-
-from .creds import get_azure_credentials
 from .deploy_config import get_deploy_config, get_server_config
 
 data_manager: "DataManager" = None
 
 class DataManager(ABC):
-    """Multi-cloud abstraction for reading/writing cloud dataset blobs."""
+    """Multi-cloud abstraction for building dataset-related cloud URLs."""
 
     @staticmethod
     def get_data_manager(cloud_type: Optional[str] = None) -> "DataManager":
@@ -32,23 +26,9 @@ class DataManager(ABC):
     def get_dataset_bucket_url(self, dataset: str, bucket_type: str) -> str:
         """Build dataset-specific bucket URL with Hail-style scheme ("gs:" or "hail-az:")."""
 
-    @abstractmethod
-    def get_blob(self, dataset: Optional[str], bucket_type: str, blob_path: str) -> Optional[bytes]:
-        """Cloud-specific blob read. Returns None if blob doesn't exist."""
-
-    @abstractmethod
-    def set_blob(self, dataset: str, bucket_type: str, blob_path: str, contents: bytes) -> None:
-        """Cloud-specific blob write."""
-
 
 class DataManagerGCP(DataManager):
-    """GCP Storage wrapper for reading/writing cloud dataset blobs."""
-
-    _storage_client: google.cloud.storage.Client = None
-
-    def __init__(self):
-        """Loads GCP credentials and caches storage client."""
-        self._storage_client = google.cloud.storage.Client()
+    """GCP Storage wrapper for building dataset-related cloud URLs."""
 
     def get_global_bucket_url(self, bucket_type: str) -> str:
         """Return deployment-level bucket URLfor GCP ("gs:")."""
@@ -60,32 +40,9 @@ class DataManagerGCP(DataManager):
         org_name = get_deploy_config().deployment_name
         return f"gs://{org_name}-{dataset}-{bucket_type}"
 
-    def get_blob(self, dataset: Optional[str], bucket_type: str, blob_path: str) -> Optional[bytes]:
-        """Reads a GCP storage bucket blob."""
-        org_name = get_deploy_config().deployment_name
-        bucket_name = f"{org_name}-{dataset}-{bucket_type}" if dataset else f"{org_name}-{bucket_type}"
-        bucket = self._storage_client.bucket(bucket_name)
-        blob = bucket.get_blob(blob_path)
-    
-        return None if blob is None else blob.download_as_bytes()
-
-    def set_blob(self, dataset: Optional[str], bucket_type: str, blob_path: str, contents: bytes) -> None:
-        """Writes a GCP storage bucket blob."""
-        org_name = get_deploy_config().deployment_name
-        bucket_name = f"{org_name}-{dataset}-{bucket_type}" if dataset else f"{org_name}-{bucket_type}"
-        bucket = self._storage_client.bucket(bucket_name)
-        blob = bucket.blob(blob_path)
-        with blob.open(mode="wb") as f:
-            f.write(contents)
-
 
 class DataManagerAzure(DataManager):
-    """Azure Storage wrapper for reading/writing cloud dataset blobs."""
-
-    _credential = None
-
-    def __init__(self):
-        self._credential = get_azure_credentials()
+    """Azure Storage wrapper for building dataset-related cloud URLs."""
 
     def get_storage_account(self, dataset: Optional[str] = None) -> str:
         """Gets storage host account name based on dataset name or AR base (without scheme)."""
@@ -106,27 +63,6 @@ class DataManagerAzure(DataManager):
     def get_dataset_bucket_url(self, dataset: str, bucket_type: str) -> str:
         """Build dataset-specific Hail-style bucket URL for Azure ("hail-az:")."""
         return f"hail-az://{self.get_storage_account(dataset)}/{bucket_type}"
-
-    def get_blob(self, dataset: Optional[str], bucket_type: str, blob_path: str) -> Optional[bytes]:
-        """Reads an Azure storage blob."""
-        storage_url = "https://" + self.get_storage_account(dataset) + ".blob.core.windows.net"
-        blob_client = azure.storage.blob.BlobClient(
-            storage_url, bucket_type, blob_path, credential=self._credential
-        )
-        try:
-            download_stream = blob_client.download_blob()
-        except azure.core.exceptions.ResourceNotFoundError:
-            return None
-
-        return download_stream.readall()
-
-    def set_blob(self, dataset: Optional[str], bucket_type: str, blob_path: str, contents: bytes) -> None:
-        """Writes an Azure storage blob."""
-        storage_url = "https://" + self.get_storage_account(dataset) + ".blob.core.windows.net"
-        blob_client = azure.storage.blob.BlobClient(
-            storage_url, bucket_type, blob_path, credential=self._credential
-        )
-        blob_client.upload_blob(data=contents, overwrite=True)
 
 
 def get_data_manager() -> DataManager:

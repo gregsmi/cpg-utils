@@ -25,6 +25,9 @@ logging.getLogger('urllib3').setLevel(logging.WARN)
 
 @register_client_class('hail-az')
 class HailAzureBlobClient(AzureBlobClient):
+
+    _cache_tmp_dir = None # avoids pytest warning
+
     def __init__(
         self,
         account_url: str,
@@ -93,6 +96,7 @@ class HailAzureBlobPath(AzureBlobPath):
 
     cloud_prefix: str = 'hail-az://'
     client: 'HailAzureBlobClient'
+    _handle = None # avoids pytest warning
 
     def __init__(
         self,
