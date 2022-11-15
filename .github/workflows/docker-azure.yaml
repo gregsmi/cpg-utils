@@ -37,6 +37,6 @@ jobs:
         docker build . -f Dockerfile \
           --build-arg BASE_CR=${AZURE_CR} \
           --tag ${IMAGE_NAME}:${VERSION} \
-          --tag ${IMAGE_NAME}:latest \
+          --tag ${IMAGE_NAME}:latest
         docker push ${IMAGE_NAME}:${VERSION}
         docker push ${IMAGE_NAME}:latest
