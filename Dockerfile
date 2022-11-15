@@ -1,5 +1,5 @@
 ARG BASE_CR
-FROM $BASE_CR/analysis-runner/images/driver:latest
+FROM $BASE_CR/cpg-common/images/hail-driver:latest
 
 COPY README.md .
 COPY setup.py .
