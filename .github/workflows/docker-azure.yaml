@@ -32,7 +32,7 @@ jobs:
         login-server: ${{ env.AZURE_CR }}
         username: ${{ env.CLIENT_ID }}
         password: ${{ env.CLIENT_PWD }}
-      run: |
+    - run: |
         docker build . -f Dockerfile \
           --build-arg BASE_CR=${AZURE_CR} \
           --tag ${IMAGE_NAME}:${VERSION} \
