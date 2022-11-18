@@ -97,3 +97,17 @@ def set_deploy_config_from_env() -> None:
 
 def get_server_config() -> Dict[str, Any]:
     return get_deploy_config().server_config
+
+
+def get_workflow_config(dataset: str, access_level: str, driver_image:str, output_prefix: str) -> Dict[str, Any]:
+    deploy_config = get_deploy_config()
+    return {
+        'access_level': access_level,
+        'dataset': dataset,
+        'dataset_gcp_project': deploy_config.server_config[dataset]['projectId'],
+        'driver_image': driver_image,
+        'image_registry_prefix': f'{deploy_config.container_registry}/cpg-common/images',
+        'reference_prefix': deploy_config.reference_base,
+        'output_prefix': output_prefix,
+        'web_url_template': f'https://{{namespace}}-{deploy_config.web_host_base}/{{dataset}}',
+    }
