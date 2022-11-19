@@ -151,7 +151,7 @@ class HailAzureBlobPath(AzureBlobPath):
 
     @property
     def drive(self) -> str:
-        return self.account / self.container
+        return f"{self.account}/{self.container}"
 
     @property
     def account(self) -> str:
