@@ -150,6 +150,10 @@ class HailAzureBlobPath(AzureBlobPath):
         return valid
 
     @property
+    def drive(self) -> str:
+        return self.account / self.container
+
+    @property
     def account(self) -> str:
         """
         Just the account part.
