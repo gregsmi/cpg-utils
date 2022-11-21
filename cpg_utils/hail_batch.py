@@ -423,6 +423,11 @@ def command(
     if define_retry_function:
         setup_gcp = True
 
+    # GRS TODO - eval for Azure
+    if setup_gcp and get_deploy_config().cloud == 'azure':
+        print(f'warning: attempted to add gs login to azure job command')
+        setup_gcp = False
+
     cmd = f"""\
     set -o pipefail
     set -ex
@@ -482,6 +487,11 @@ def query_command(
     Constructs a command string to use with job.command().
     If hail_billing_project is provided, Hail Query will be initialised.
     """
+    # GRS TODO - eval for Azure
+    if setup_gcp and get_deploy_config().cloud == 'azure':
+        print(f'warning: attempted to add gs login to azure job query command')
+        setup_gcp = False
+
     init_hail_code = """
 from cpg_utils.hail_batch import init_batch
 init_batch()
