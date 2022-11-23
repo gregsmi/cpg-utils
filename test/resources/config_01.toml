@@ -1,3 +1,29 @@
+[hail]
+bucket = "hail-az://sevgen002sa/hail"
+
+[workflow]
+access_level = "test"
+dataset = "severalgenomes"
+dataset_gcp_project = "sevgen002"
+driver_image = "image"
+image_registry_prefix = "azcpg001acr.azurecr.io/cpg-common/images"
+reference_prefix = "hail-az://azcpg001sa/reference"
+output_prefix = "gregsmi"
+web_url_template = "https://{namespace}-web-azcpg001.azurewebsites.net/{dataset}"
+
+[storage.severalgenomes]
+default = "hail-az://sevgen002sa/test"
+web = "hail-az://sevgen002sa/test-web"
+analysis = "hail-az://sevgen002sa/test-analysis"
+tmp = "hail-az://sevgen002sa/test-tmp"
+
+[storage.rgp]
+default = "hail-az://raregen001sa/test"
+web = "hail-az://raregen001sa/test-web"
+analysis = "hail-az://raregen001sa/test-analysis"
+tmp = "hail-az://raregen001sa/test-tmp"
+
+[CPG_DEPLOY_CONFIG]
 cloud = "azure" 
 sample_metadata_project = "cpgsm01" 
 sample_metadata_host = "https://sm01.azurewebsites.net" 

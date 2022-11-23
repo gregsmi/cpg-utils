@@ -85,3 +85,15 @@ def get_global_bucket_url(bucket_type: str) -> str:
 def get_dataset_bucket_url(dataset: str, bucket_type: str) -> str:
     """Return dataset-specific bucket URL with Hail-style scheme ("gs:" or "hail-az:")."""
     return get_data_manager().get_dataset_bucket_url(dataset, bucket_type)
+
+
+def get_dataset_bucket_config(dataset: str, access_level: str) -> Dict[str, str]:
+    """Return full set of dataset-specific bucket URLs for config."""
+    assert access_level == "main" or access_level == "test"
+    data_manager = get_data_manager()
+    return {
+        "default" : data_manager.get_dataset_bucket_url(dataset, access_level),
+        "web" : data_manager.get_dataset_bucket_url(dataset, f"{access_level}-web"),
+        "analysis" : data_manager.get_dataset_bucket_url(dataset, f"{access_level}-analysis"),
+        "tmp" : data_manager.get_dataset_bucket_url(dataset, f"{access_level}-tmp")
+    }

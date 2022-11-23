@@ -14,7 +14,6 @@ from hail.utils.java import Env
 
 from cpg_utils.config import get_config
 from cpg_utils.deploy_config import get_deploy_config
-from cpg_utils.storage import get_dataset_bucket_url
 from cpg_utils import to_path, Path
 
 
@@ -110,7 +109,6 @@ def dataset_path(
     suffix: str,
     category: Optional[str] = None,
     dataset: Optional[str] = None,
-    access_level: Optional[str] = None,
 ) -> str:
     """
     Returns a full path ('gs:' or 'hail-az:') for the current dataset, given a path suffix.
@@ -121,9 +119,9 @@ def dataset_path(
 
     Notes
     -----
-    Relies on the `CPG_DEPLOY_CONFIG` section of the config file for deployment information, and the 
-    `workflow/dataset` and `workflow/access_level` config variables if not passed in as arguments.
-    These configuration settings are added automatically by analysis-runner.
+    Performs a lookup on the `storage` section of the config file, and the  `workflow/dataset` 
+    config variables if not passed in as an  argument. These configuration settings are added 
+    automatically by analysis-runner.
 
     Parameters
     ----------
@@ -136,26 +134,22 @@ def dataset_path(
         for a full list of categories and their use cases.
     dataset : str, optional
         Dataset name, takes precedence over the `workflow/dataset` config variable
-    access_level : str, optional
-        Access level, takes precedence over the `workflow/access_level` config variable
 
     Returns
     -------
     str
     """
     config = get_config()
+
     dataset = dataset or config['workflow'].get('dataset')
-    access_level = access_level or config['workflow'].get('access_level')
+    if (storage_config := config.get('storage', {}).get(dataset)) is None:
+        raise ValueError(f'missing config storage section for dataset "{dataset}"')
 
-    namespace = Namespace.from_access_level(access_level)
-    if category is None:
-        category = namespace.value
-    elif category != 'archive':
-        category = f'{namespace.value}-{category}'
-    
-    path_prefix = get_dataset_bucket_url(dataset, bucket_type=category)
+    category = category or 'default'
+    if (storage_url := storage_config.get(category)) is None:
+        raise ValueError(f'no "{category}" storage url configured for dataset "{dataset}"')
 
-    return f'{path_prefix}/{suffix}'
+    return f'{storage_url}/{suffix}'
 
 
 def web_url(
@@ -553,7 +547,7 @@ def start_query_context(
         asyncio.get_event_loop().run_until_complete(
             hl.init_batch(
                 billing_project=billing_project,
-                remote_tmpdir=remote_tmpdir(get_dataset_bucket_url(dataset, 'hail')),
+                remote_tmpdir=remote_tmpdir(get_config()['hail']['bucket']),
                 token=os.environ.get('HAIL_TOKEN'),
                 default_reference='GRCh38',
             )
