@@ -95,5 +95,6 @@ def get_dataset_bucket_config(dataset: str, access_level: str) -> Dict[str, str]
         "default" : data_manager.get_dataset_bucket_url(dataset, access_level),
         "web" : data_manager.get_dataset_bucket_url(dataset, f"{access_level}-web"),
         "analysis" : data_manager.get_dataset_bucket_url(dataset, f"{access_level}-analysis"),
-        "tmp" : data_manager.get_dataset_bucket_url(dataset, f"{access_level}-tmp")
+        "tmp" : data_manager.get_dataset_bucket_url(dataset, f"{access_level}-tmp"),
+        "web_url": f"https://{access_level}-{get_deploy_config().web_host_base}/{dataset}"
     }

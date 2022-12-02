@@ -16,12 +16,14 @@ default = "hail-az://sevgen002sa/test"
 web = "hail-az://sevgen002sa/test-web"
 analysis = "hail-az://sevgen002sa/test-analysis"
 tmp = "hail-az://sevgen002sa/test-tmp"
+web_url = "https://test-web-azcpg001.azurewebsites.net/severalgenomes"
 
 [storage.rgp]
 default = "hail-az://raregen001sa/test"
 web = "hail-az://raregen001sa/test-web"
 analysis = "hail-az://raregen001sa/test-analysis"
 tmp = "hail-az://raregen001sa/test-tmp"
+web_url = "https://test-web-azcpg001.azurewebsites.net/rgp"
 
 [CPG_DEPLOY_CONFIG]
 cloud = "azure" 
