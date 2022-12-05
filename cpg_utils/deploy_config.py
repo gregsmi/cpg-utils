@@ -100,6 +100,7 @@ def get_server_config() -> Dict[str, Any]:
 
 
 def get_workflow_config(dataset: str, access_level: str, driver_image:str, output_prefix: str) -> Dict[str, Any]:
+    deploy_config = get_deploy_config()
     return {
         'access_level': access_level,
         'dataset': dataset,
