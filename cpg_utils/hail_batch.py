@@ -208,8 +208,8 @@ def output_path(suffix: str, category: Optional[str] = None) -> str:
     -------
     str
     """
-    full_suffix = os.path.join(get_config()['workflow']['output_prefix'], suffix)
-    return dataset_path(full_suffix, category)
+    prefix = retrieve(['workflow', 'output_prefix'])
+    return dataset_path(f'{prefix}/{suffix}', category)
 
 
 def image_path(key: str) -> str:
@@ -238,7 +238,9 @@ def image_path(key: str) -> str:
     -------
     str
     """
-    return retrieve(['images'] + key.strip('/').split('/'))
+    prefix = retrieve(['workflow', 'image_registry_prefix'])
+    suffix = retrieve(['images'] + key.strip('/').split('/'))
+    return f'{prefix}/{suffix}'
 
 
 def reference_path(key: str) -> Path:
@@ -271,7 +273,9 @@ def reference_path(key: str) -> Path:
     -------
     str
     """
-    return to_path(retrieve(['references'] + key.strip('/').split('/')))
+    prefix = retrieve(['workflow', 'reference_prefix'])
+    suffix = retrieve(['references'] + key.strip('/').split('/'))
+    return to_path(f'{prefix}/{suffix}')
 
 
 def genome_build() -> str:
