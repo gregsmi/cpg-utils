@@ -5,5 +5,11 @@
 		"testToken": "Hail test SA account",
 		"standardToken": "Hail standard SA account",
 		"fullToken": "Hail full SA account" 
+	},
+	"severalgenomes": {
+		"projectId": "sevgen001"
+	},
+	"fewgenomes": {
+		"projectId": "fewgen001"
 	}
 }

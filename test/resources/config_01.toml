@@ -45,3 +45,16 @@ container_registry = "ar-docker.pkg.dev"
 web_host_base = "web.websites.net" 
 reference_base = "hail-az://cpgar01/reference" 
 deployment_name = "cpgar01"
+
+[CPG_DEPLOY_CONFIG.datasets.severalgenomes]
+projectId = "sevgen001"
+
+[CPG_DEPLOY_CONFIG.datasets.fewgenomes]
+projectId = "fewgen001"
+
+[CPG_DEPLOY_CONFIG.datasets.dataset1]
+projectId = "dataset1_id"
+allowedRepos = ["sample-metadata", "fewgenomes"]
+testToken = "Hail test SA account"
+standardToken = "Hail standard SA account"
+fullToken = "Hail full SA account" 

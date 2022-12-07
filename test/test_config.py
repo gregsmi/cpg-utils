@@ -48,11 +48,18 @@ def test_config_from_toml(monkeypatch, test_resources_path, json_load):
     set_deploy_config_from_env()
 
     set_config_paths([os.path.join(test_resources_path, "config_01.toml")])
-    get_config()
+    get_config() # this should trigger loading deploy_config from TOML file
 
     cfg1 = json_load("config_01.json")
+    scfg1 = json_load("server_config_01.json")
     dc = get_deploy_config()
     assert dc.to_dict() == cfg1
+    assert dc.server_config == scfg1
+
+    assert "datasets" not in cfg1
+    scfg1["dataset1"] = {"projectId": "dataset1_id"}
+    cfg1["datasets"] = scfg1
+    assert dc.to_dict(include_datasets=True) == cfg1
 
 
 def test_config_storage(monkeypatch, test_resources_path):

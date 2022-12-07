@@ -155,6 +155,9 @@ def read_configs(config_paths: List[str]) -> frozendict:
     reference_base = "gs://cpg-reference"
     deployment_name = "cpg"
 
+    [CPG_DEPLOY_CONFIG.datasets.tob-wgs]
+    projectId = "tob-wgs"
+    
     >>> from cpg_utils.config import get_config
     >>> get_config()['workflow']['dataset']
     'tob-wgs'

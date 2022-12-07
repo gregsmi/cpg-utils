@@ -1,6 +1,6 @@
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass
 from os import getenv
 from typing import Any, Dict, Optional
 
@@ -32,8 +32,12 @@ class DeployConfig:
     reference_base: str = DEFAULT_CONFIG["reference_base"]
     deployment_name: str = DEFAULT_CONFIG["deployment_name"]
 
+    datasets: InitVar[Optional[Dict[str, Any]]] = None
     _server_config: Dict[str, Any] = None
     _secret_manager: SecretManager = None
+    
+    def __post_init__(self, datasets):
+        self._server_config = datasets
 
     @staticmethod
     def from_dict(config: Dict[str, str]) -> "DeployConfig":
@@ -47,8 +51,13 @@ class DeployConfig:
         deploy_config["sample_metadata_host"] = getenv("SM_HOST_URL", deploy_config["sample_metadata_host"])
         return DeployConfig.from_dict(deploy_config)
 
-    def to_dict(self) -> Dict[str, str]:
-        return {k:v for k,v in self.__dict__.items() if not k.startswith('_')}
+    def to_dict(self, include_datasets: bool = False) -> Dict[str, str]:
+        deploy_config = {k:v for k,v in self.__dict__.items() if not k.startswith('_')}
+        if include_datasets:
+            # Filter server_config to avoid outputting sensitive data.
+            datasets = { ds: { "projectId": config["projectId"] } for ds, config in self.server_config.items() }
+            deploy_config["datasets"] = datasets
+        return deploy_config
 
     @property
     def secret_manager(self) -> SecretManager:
@@ -62,6 +71,9 @@ class DeployConfig:
             config = self.read_global_config("server-config")
             self._server_config = json.loads(config)
         return self._server_config
+
+    def set_server_config(self, server_config: Dict[str, Any]) -> None:
+        self._server_config = server_config
 
     def read_project_id_config(self, project_id: str, config_key: str) -> str:
         config_host = project_id + "vault" if self.cloud == "azure" else project_id
@@ -97,6 +109,10 @@ def set_deploy_config_from_env() -> None:
 
 def get_server_config() -> Dict[str, Any]:
     return get_deploy_config().server_config
+
+
+def set_server_config(server_config: Dict[str, Any]) -> None:
+    get_deploy_config().set_server_config(server_config)
 
 
 def get_workflow_config(dataset: str, access_level: str, driver_image:str, output_prefix: str) -> Dict[str, Any]:
