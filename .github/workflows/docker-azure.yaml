@@ -7,7 +7,7 @@ on:
       - main
 
 env:
-  VERSION: 1.2.11
+  VERSION: 1.2.12
   AZURE_CR: azcpg001acr.azurecr.io
 
 jobs:
