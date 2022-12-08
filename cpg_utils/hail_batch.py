@@ -238,9 +238,7 @@ def image_path(key: str) -> str:
     -------
     str
     """
-    prefix = retrieve(['workflow', 'image_registry_prefix'])
-    suffix = retrieve(['images'] + key.strip('/').split('/'))
-    return f'{prefix}/{suffix}'
+    return retrieve(['images'] + key.strip('/').split('/'))
 
 
 def reference_path(key: str) -> Path:
@@ -273,9 +271,7 @@ def reference_path(key: str) -> Path:
     -------
     str
     """
-    prefix = retrieve(['workflow', 'reference_prefix'])
-    suffix = retrieve(['references'] + key.strip('/').split('/'))
-    return to_path(f'{prefix}/{suffix}')
+    return to_path(retrieve(['references'] + key.strip('/').split('/')))
 
 
 def genome_build() -> str:

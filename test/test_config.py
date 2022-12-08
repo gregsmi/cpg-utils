@@ -72,9 +72,9 @@ def test_config_storage(monkeypatch, test_resources_path):
     assert output_path("three") == "hail-az://sevgen002sa/test/gregsmi/three"
     assert remote_tmpdir() == "hail-az://sevgen002sa/hail/batch-tmp"
     assert web_url("four") == "https://test-web-azcpg001.azurewebsites.net/severalgenomes/four"
-    assert reference_path("genome_build") == HailAzureBlobPath("hail-az://azcpg001sa/reference/GRCh38")
-    assert reference_path("seqr/combined_reference") == HailAzureBlobPath("hail-az://azcpg001sa/reference/combined_reference_data_grch38.ht")
-    assert image_path("vep") == "azcpg001acr.azurecr.io/cpg-common/images/vep:105.0"
+    assert reference_path("genome_build") == HailAzureBlobPath("hail-az://cpgar01/reference/GRCh38")
+    assert reference_path("seqr/combined_reference") == HailAzureBlobPath("hail-az://cpgar01/reference/combined_reference_data_grch38.ht")
+    assert image_path("vep") == "ar-docker.pkg.dev/cpg-common/images/vep:105.0"
 
 
 
