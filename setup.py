@@ -19,7 +19,6 @@ setup(
         'azure-keyvault-secrets',
         'azure-storage-blob',
         'cloudpathlib[all]',
-        'hail',
         'toml',
         'frozendict',
     ],
