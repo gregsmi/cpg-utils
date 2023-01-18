@@ -24,6 +24,9 @@ setup(
     ],
     extras_require={
         'test': [
+            # hail_batch module depends on hail lib but 
+            # hail has been removed from dependencies 
+            'hail',
             'pytest',
             'pytest-mock',
             'pytest-cov'
