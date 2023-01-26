@@ -42,6 +42,25 @@ def get_output_of_command(command: List[str], description: str) -> str:
         ) from e
 
 
+def get_git_root_relative_path_from_absolute(full_path: str) -> str:
+    """
+    Convert an absolute path within a git repo to a path relative to the git root.
+    Errors if the absolute path is not within the current repo.
+
+    Parameters
+    ----------
+    full_path
+
+    Returns
+    -------
+    path relative to current repo root
+    """
+    root = get_git_repo_root()
+    if os.path.commonpath([root, full_path]) != root:
+        raise Exception(f'Path {full_path} not contained within current repo root {root}')
+    return os.path.relpath(full_path, root)
+
+
 def get_relative_script_path_from_git_root(script_name: str) -> str:
     """
     If we're in a subdirectory, get the relative path from the git root
