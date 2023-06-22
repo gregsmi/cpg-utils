@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import traceback
 
 from google.auth import (
@@ -12,16 +13,25 @@ from google.auth import (
 from google.auth import jwt
 from google.auth._default import (
     _AUTHORIZED_USER_TYPE,
-    _HELP_MESSAGE,
     _SERVICE_ACCOUNT_TYPE,
     _VALID_TYPES,
 )
+
+# pylint: disable=no-name-in-module
 from google.cloud import secretmanager
 from google.oauth2 import credentials as oauth2_credentials, service_account
 import google.api_core.exceptions
 import google.auth.transport
 from google.auth.transport import requests
 import google.oauth2
+from cloudpathlib import AnyPath
+
+from cpg_utils.config import get_config
+
+_CLOUD_SDK_MISSING_CREDENTIALS = """\
+Your default credentials were not found. To set up Application Default Credentials, \
+see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.\
+"""
 
 
 def email_from_id_token(id_token_jwt: str) -> str:
@@ -283,4 +293,57 @@ def _get_default_id_token_credentials(
         if current_credentials is not None:
             return current_credentials
 
-    raise exceptions.DefaultCredentialsError(_HELP_MESSAGE)
+    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
+
+
+def get_cached_group_members(
+    group, members_cache_location: str | None = None
+) -> set[str]:
+    """
+    Get cached members of a group, based on the members_cache_location
+    """
+    group_name = group.split('@')[0]
+
+    if not members_cache_location:
+        config = get_config()
+        members_cache_location = config['infrastructure']['members_cache_location']
+
+    pathname = os.path.join(members_cache_location, group_name + '-members.txt')  # type: ignore
+
+    with AnyPath(pathname).open() as f:
+        return set(line.strip() for line in f.readlines() if line.strip())
+
+
+def is_member_in_cached_group(
+    group, member, members_cache_location: str | None = None
+) -> bool:
+    """
+    Check if a member is in a group, based on the infrastructure config
+    """
+    return member.lower() in get_cached_group_members(
+        group, members_cache_location=members_cache_location
+    )
+
+
+def get_path_components_from_gcp_path(path: str) -> dict[str, str]:
+    """
+    Return the {bucket_name}, {dataset}, {bucket_type}, {subdir}, and {file} for GS only paths
+    Uses regex to match the full bucket name, dataset name, bucket type (e.g. 'test', 'main-upload', 'release'),
+    subdirectory, and the file name.
+    """
+
+    bucket_types = ['archive', 'hail', 'main', 'test', 'release']
+
+    # compile pattern matching all CPG bucket formats
+    gspath_pattern = re.compile(
+        r'gs://(?P<bucket>cpg-(?P<dataset>[\w-]+)-(?P<bucket_type>['
+        + '|'.join(s for s in bucket_types)
+        + r']+[-\w]*))/(?P<suffix>.+/)?(?P<file>.*)$'
+    )
+
+    # if a match succeeds, return the key: value dictionary
+    if path_match := gspath_pattern.match(path):
+        return path_match.groupdict()
+
+    # raise an error if the input String was not a valid CPG bucket path
+    raise ValueError('The input String did not match a valid GCP path')

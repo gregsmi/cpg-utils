@@ -115,6 +115,8 @@ def dataset_path(
     'gs://cpg-fewgenomes-test/1kg_densified/combined.mt'
     >>> dataset_path('1kg_densified/report.html', 'web')
     'gs://cpg-fewgenomes-test-web/1kg_densified/report.html'
+    >>> dataset_path('1kg_densified/report.html', 'web', test=True)
+    'gs://cpg-fewgenomes-test-web/1kg_densified/report.html'
 
     Notes
     -----
@@ -170,7 +172,11 @@ def web_url(suffix: str = '', dataset: str | None = None) -> str:
     return dataset_path(suffix=suffix, dataset=dataset, category='web_url')
 
 
-def output_path(suffix: str, category: Optional[str] = None) -> str:
+def output_path(
+    suffix: str,
+    category: Optional[str] = None,
+    dataset: Optional[str] = None,
+) -> str:
     """
     Returns a full path for the given category and path suffix.
 
@@ -203,13 +209,15 @@ def output_path(suffix: str, category: Optional[str] = None) -> str:
         A path suffix to append to the bucket + output directory.
     category : str, optional
         A category like "tmp", "web", etc., defaults to "default" if ommited.
+    dataset : str, optional
+        Dataset name, takes precedence over the `workflow/dataset` config variable
 
     Returns
     -------
     str
     """
     prefix = retrieve(['workflow', 'output_prefix'])
-    return dataset_path(f'{prefix}/{suffix}', category)
+    return dataset_path(f'{prefix}/{suffix}', category, dataset)
 
 
 def image_path(key: str) -> str:
@@ -291,11 +299,11 @@ def fasta_res_group(b: hb.Batch, indices: list[str] | None = None):
         'broad/ref_fasta'
     )
     ref_fasta = to_path(ref_fasta)
-    d = dict(
-        base=str(ref_fasta),
-        fai=str(ref_fasta) + '.fai',
-        dict=str(ref_fasta.with_suffix('.dict')),
-    )
+    d = {
+        'base': str(ref_fasta),
+        'fai': str(ref_fasta) + '.fai',
+        'dict': str(ref_fasta.with_suffix('.dict')),
+    }
     if indices:
         for ext in indices:
             d[ext] = f'{ref_fasta}.{ext}'

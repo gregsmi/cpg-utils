@@ -1,6 +1,7 @@
+bump2version
+hail
 pre-commit
 pylint
-bump2version
 pytest
 pytest-cov
 toml
