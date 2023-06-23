@@ -67,13 +67,13 @@ def test_config_storage(monkeypatch, test_resources_path):
     monkeypatch.delenv("CPG_DEPLOY_CONFIG", raising=False)
     set_deploy_config_from_env()
 
-    assert dataset_path("one", "web") == "hail-az://sevgen002sa/test-web/one"
-    assert dataset_path("two", "analysis", "rgp") == "hail-az://raregen001sa/test-analysis/two"
-    assert output_path("three") == "hail-az://sevgen002sa/test/gregsmi/three"
-    assert remote_tmpdir() == "hail-az://sevgen002sa/hail/batch-tmp"
+    assert dataset_path("one", "web") == "https://sevgen002sa.blob.core.windows.net/test-web/one"
+    assert dataset_path("two", "analysis", "rgp") == "https://raregen001sa.blob.core.windows.net/test-analysis/two"
+    assert output_path("three") == "https://sevgen002sa.blob.core.windows.net/test/gregsmi/three"
+    assert remote_tmpdir() == "https://sevgen002sa.blob.core.windows.net/hail/batch-tmp"
     assert web_url("four") == "https://test-web-azcpg001.azurewebsites.net/severalgenomes/four"
-    assert reference_path("genome_build") == HailAzureBlobPath("hail-az://cpgar01/reference/GRCh38")
-    assert reference_path("seqr/combined_reference") == HailAzureBlobPath("hail-az://cpgar01/reference/combined_reference_data_grch38.ht")
+    assert reference_path("genome_build") == HailAzureBlobPath("https://cpgar01.blob.core.windows.net/reference/GRCh38")
+    assert reference_path("seqr/combined_reference") == HailAzureBlobPath("https://cpgar01.blob.core.windows.net/reference/combined_reference_data_grch38.ht")
     assert image_path("vep") == "ar-docker.pkg.dev/cpg-common/images/vep:105.0"
 
 

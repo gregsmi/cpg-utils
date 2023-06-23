@@ -1,5 +1,5 @@
 [hail]
-bucket = "hail-az://sevgen002sa/hail"
+bucket = "https://sevgen002sa.blob.core.windows.net/hail"
 
 [workflow]
 access_level = "test"
@@ -8,26 +8,26 @@ driver_image = "image"
 output_prefix = "gregsmi"
 
 [storage.severalgenomes]
-default = "hail-az://sevgen002sa/test"
-web = "hail-az://sevgen002sa/test-web"
-analysis = "hail-az://sevgen002sa/test-analysis"
-tmp = "hail-az://sevgen002sa/test-tmp"
+default = "https://sevgen002sa.blob.core.windows.net/test"
+web = "https://sevgen002sa.blob.core.windows.net/test-web"
+analysis = "https://sevgen002sa.blob.core.windows.net/test-analysis"
+tmp = "https://sevgen002sa.blob.core.windows.net/test-tmp"
 web_url = "https://test-web-azcpg001.azurewebsites.net/severalgenomes"
 
 [storage.rgp]
-default = "hail-az://raregen001sa/test"
-web = "hail-az://raregen001sa/test-web"
-analysis = "hail-az://raregen001sa/test-analysis"
-tmp = "hail-az://raregen001sa/test-tmp"
+default = "https://raregen001sa.blob.core.windows.net/test"
+web = "https://raregen001sa.blob.core.windows.net/test-web"
+analysis = "https://raregen001sa.blob.core.windows.net/test-analysis"
+tmp = "https://raregen001sa.blob.core.windows.net/test-tmp"
 web_url = "https://test-web-azcpg001.azurewebsites.net/rgp"
 
 [references]
-genome_build = 'hail-az://cpgar01/reference/GRCh38'
-vep_mount = "hail-az://cpgar01/reference/vep/105.0"
+genome_build = 'https://cpgar01.blob.core.windows.net/reference/GRCh38'
+vep_mount = "https://cpgar01.blob.core.windows.net/reference/vep/105.0"
 
 [references.seqr]
-combined_reference = 'hail-az://cpgar01/reference/combined_reference_data_grch38.ht'
-clinvar = 'hail-az://cpgar01/reference/clinvar.GRCh38.ht'
+combined_reference = 'https://cpgar01.blob.core.windows.net/reference/combined_reference_data_grch38.ht'
+clinvar = 'https://cpgar01.blob.core.windows.net/reference/clinvar.GRCh38.ht'
 
 [images]
 hail = "ar-docker.pkg.dev/cpg-common/images/hail-driver:latest"
@@ -41,7 +41,7 @@ analysis_runner_project = "cpgar01"
 analysis_runner_host = "https://ar01.azurewebsites.net" 
 container_registry = "ar-docker.pkg.dev" 
 web_host_base = "web.websites.net" 
-reference_base = "hail-az://cpgar01/reference" 
+reference_base = "https://cpgar01.blob.core.windows.net/reference" 
 deployment_name = "cpgar01"
 
 [CPG_DEPLOY_CONFIG.datasets.severalgenomes]

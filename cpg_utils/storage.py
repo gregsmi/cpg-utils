@@ -20,11 +20,11 @@ class DataManager(ABC):
 
     @abstractmethod
     def get_global_bucket_url(self, bucket_type: str) -> str:
-        """Return deployment-level bucket URL with Hail-style scheme ("gs:" or "hail-az:")."""
+        """Return deployment-level bucket URL with Hail-style scheme ("gs:" or "https:")."""
 
     @abstractmethod
     def get_dataset_bucket_url(self, dataset: str, bucket_type: str) -> str:
-        """Build dataset-specific bucket URL with Hail-style scheme ("gs:" or "hail-az:")."""
+        """Build dataset-specific bucket URL with Hail-style scheme ("gs:" or "https:")."""
 
 
 class DataManagerGCP(DataManager):
@@ -57,12 +57,12 @@ class DataManagerAzure(DataManager):
         return f"{account}sa"
 
     def get_global_bucket_url(self, bucket_type: str) -> str:
-        """Return deployment-level bucket URL with Hail-style scheme ("gs:" or "hail-az:")."""
-        return f"hail-az://{self.get_storage_account()}/{bucket_type}"
+        """Return deployment-level bucket URL for Azure ("https:")."""
+        return f"https://{self.get_storage_account()}.blob.core.windows.net/{bucket_type}"
 
     def get_dataset_bucket_url(self, dataset: str, bucket_type: str) -> str:
-        """Build dataset-specific Hail-style bucket URL for Azure ("hail-az:")."""
-        return f"hail-az://{self.get_storage_account(dataset)}/{bucket_type}"
+        """Build dataset-specific Hail-style bucket URL for Azure ("https:")."""
+        return f"https://{self.get_storage_account(dataset)}.blob.core.windows.net/{bucket_type}"
 
 
 def get_data_manager() -> DataManager:
@@ -78,12 +78,12 @@ def clear_data_manager() -> None:
 
 
 def get_global_bucket_url(bucket_type: str) -> str:
-    """Return deployment-level bucket URL with Hail-style scheme ("gs:" or "hail-az:")."""
+    """Return deployment-level bucket URL with Hail-style scheme ("gs:" or "https:")."""
     return get_data_manager().get_global_bucket_url(bucket_type)
 
 
 def get_dataset_bucket_url(dataset: str, bucket_type: str) -> str:
-    """Return dataset-specific bucket URL with Hail-style scheme ("gs:" or "hail-az:")."""
+    """Return dataset-specific bucket URL with Hail-style scheme ("gs:" or "https:")."""
     return get_data_manager().get_dataset_bucket_url(dataset, bucket_type)
 
 

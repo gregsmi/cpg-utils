@@ -30,5 +30,5 @@ def test_azure_storage(monkeypatch, mock_config_fixture):
         get_dataset_bucket_url("dataset0", "main-read")
         assert "No such dataset in server config" in str(e.value)
 
-    assert get_dataset_bucket_url("dataset1", "test") == "hail-az://dataset1_idsa/test"
-    assert get_global_bucket_url("global") == "hail-az://cpgsa/global"
+    assert get_dataset_bucket_url("dataset1", "test") == "https://dataset1_idsa.blob.core.windows.net/test"
+    assert get_global_bucket_url("global") == "https://cpgsa.blob.core.windows.net/global"

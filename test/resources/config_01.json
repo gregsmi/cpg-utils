@@ -6,6 +6,6 @@
     "analysis_runner_host": "https://ar01.azurewebsites.net",
     "container_registry": "ar-docker.pkg.dev",
     "web_host_base": "web.websites.net",
-    "reference_base": "hail-az://cpgar01/reference",
+    "reference_base": "https://cpgar01.blob.core.windows.net/reference",
     "deployment_name": "cpgar01"
 }
