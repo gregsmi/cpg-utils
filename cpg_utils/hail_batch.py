@@ -737,6 +737,7 @@ def query_command(
     setup_gcp: bool = False,
     setup_hail: bool = True,
     packages: Optional[List[str]] = None,
+    init_batch_args: dict[str, str | int] | None = None,
 ) -> str:
     """
     Construct a command to run a python function inside a Hail Batch job.
@@ -745,15 +746,28 @@ def query_command(
     Run a Python Hail Query function inside a Hail Batch job.
     Constructs a command string to use with job.command().
     If hail_billing_project is provided, Hail Query will be initialised.
+
+    init_batch_args can be used to pass additional arguments to init_batch.
+    this is a dict of args, which will be placed into the batch initiation command
+    e.g. {'worker_memory': 'highmem'} -> 'init_batch(worker_memory="highmem")'
     """
+
+    # translate any input arguments into an embeddable String
+    if init_batch_args:
+        batch_overrides = ', '.join(
+            f'{k}={repr(v)}' for k, v in init_batch_args.items()
+        )
+    else:
+        batch_overrides = ''
+
     # GRS TODO - eval for Azure
     if setup_gcp and get_deploy_config().cloud == 'azure':
         print(f'warning: attempted to add gs login to azure job query command')
         setup_gcp = False
 
-    init_hail_code = """
+    init_hail_code = f"""
 from cpg_utils.hail_batch import init_batch
-init_batch()
+init_batch({batch_overrides})
 """
 
     python_code = f"""
