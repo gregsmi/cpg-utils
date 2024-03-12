@@ -1,4 +1,8 @@
+azure-keyvault
 bump2version
+cloudpathlib
+frozendict
+google-cloud-secret-manager
 hail
 pre-commit
 pylint
